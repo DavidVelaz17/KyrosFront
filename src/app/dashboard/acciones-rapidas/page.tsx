@@ -1,12 +1,5 @@
-import { Zap } from "lucide-react";
-import { ComingSoon } from "@/components/layout/coming-soon";
+import { QuickActionsPage } from "@/components/quick-actions/quick-actions-page";
 
 export default function AccionesRapidasPage() {
-  return (
-    <ComingSoon
-      icon={Zap}
-      title="Acciones rápidas"
-      description="Los accesos directos para tareas frecuentes estarán disponibles próximamente."
-    />
-  );
+  return <QuickActionsPage />;
 }

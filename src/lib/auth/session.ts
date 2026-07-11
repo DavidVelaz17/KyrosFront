@@ -6,9 +6,9 @@ const SESSION_COOKIE = "kyros_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 /**
- * Mock session storage: the payload is base64-encoded JSON, not signed/encrypted.
- * This is a placeholder until the Spring Boot backend issues real (signed) auth tokens —
- * swap `createSession`/`getSession` for cookie/JWT handling driven by that backend.
+ * The cookie payload itself is just base64 JSON (not signed), but the real security
+ * boundary is the backend-issued JWT it carries in `token`, verified by Spring Security
+ * on every request via apiFetch's Authorization header.
  */
 export async function createSession(user: SessionUser): Promise<void> {
   const value = Buffer.from(JSON.stringify(user)).toString("base64url");
@@ -29,7 +29,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
   try {
     const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf-8"));
-    if (typeof parsed?.email === "string" && typeof parsed?.nombre === "string") {
+    if (typeof parsed?.token === "string" && typeof parsed?.usuario === "string") {
       return parsed as SessionUser;
     }
     return null;

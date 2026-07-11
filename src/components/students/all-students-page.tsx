@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Users } from "lucide-react";
-import type { Group } from "@/lib/types/group";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
-import { listStudentsByGroup } from "@/lib/api/students";
+import { listAllStudents } from "@/lib/api/students";
 import { listPaymentsByStudent } from "@/lib/api/payments";
 import { listUniversidades } from "@/lib/api/destinos";
 import { useGroups } from "@/components/groups/groups-provider";
@@ -21,12 +20,11 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { STUDENT_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/student-columns";
-import { formatDate } from "@/lib/utils/format";
 import { resolveStudentUniversidades, useStudentUniversidades } from "@/hooks/use-student-universidades";
 
 type ModalKind = "create" | "view" | "pay" | "history" | null;
 
-export function StudentsPage({ group }: { group: Group }) {
+export function AllStudentsPage() {
   const { groups } = useGroups();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,16 +40,10 @@ export function StudentsPage({ group }: { group: Group }) {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [historyPayments, setHistoryPayments] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [loadedGroupId, setLoadedGroupId] = useState<string | null>(null);
-
-  if (group.id !== loadedGroupId) {
-    setLoadedGroupId(group.id);
-    setLoading(true);
-  }
 
   useEffect(() => {
     let cancelled = false;
-    listStudentsByGroup(group.id).then((data) => {
+    listAllStudents().then((data) => {
       if (!cancelled) {
         setStudents(data);
         setLoading(false);
@@ -60,8 +52,9 @@ export function StudentsPage({ group }: { group: Group }) {
     return () => {
       cancelled = true;
     };
-  }, [group.id]);
+  }, []);
 
+  const groupNameById = useMemo(() => new Map(groups.map((group) => [group.id, group.nombre])), [groups]);
   const universidadMap = useStudentUniversidades(students);
 
   useEffect(() => {
@@ -86,7 +79,7 @@ export function StudentsPage({ group }: { group: Group }) {
   const columns = useMemo(
     () =>
       buildStudentColumns({
-        resolveGroupName: () => group.nombre,
+        resolveGroupName: (student) => (student.grupoId ? groupNameById.get(student.grupoId) ?? "Sin grupo" : "Sin grupo"),
         resolveUniversidad: (student) => resolveStudentUniversidades(student, universidadMap),
         onView: (student) => {
           setSelectedStudent(student);
@@ -106,7 +99,7 @@ export function StudentsPage({ group }: { group: Group }) {
           });
         },
       }),
-    [group.nombre, universidadMap]
+    [groupNameById, universidadMap]
   );
 
   function closeModal() {
@@ -117,15 +110,9 @@ export function StudentsPage({ group }: { group: Group }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{group.nombre}</h1>
-          <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-zinc-500 dark:text-zinc-400">
-            <span>{group.plantel}</span>
-            <span aria-hidden>·</span>
-            <span>Inicio: {formatDate(group.fechaInicio)}</span>
-            <span aria-hidden>·</span>
-            <span>
-              {students.length} {students.length === 1 ? "alumno" : "alumnos"}
-            </span>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Alumnos</h1>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {students.length} {students.length === 1 ? "alumno registrado" : "alumnos registrados"}
           </p>
         </div>
         <Button onClick={() => setActiveModal("create")}>
@@ -152,9 +139,9 @@ export function StudentsPage({ group }: { group: Group }) {
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/40">
           <Users className="h-10 w-10 text-zinc-400" />
           <div>
-            <p className="font-medium text-zinc-900 dark:text-zinc-100">Sin alumnos inscritos</p>
+            <p className="font-medium text-zinc-900 dark:text-zinc-100">Sin alumnos registrados</p>
             <p className="mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
-              Registra al primer alumno de este grupo.
+              Registra al primer alumno con el botón &quot;Nuevo alumno&quot;.
             </p>
           </div>
           <Button onClick={() => setActiveModal("create")}>
@@ -170,12 +157,8 @@ export function StudentsPage({ group }: { group: Group }) {
         open={activeModal === "create"}
         onClose={closeModal}
         groups={groups}
-        defaultGroupId={group.id}
-        onCreated={(created) => {
-          if (created.grupoId === group.id) {
-            setStudents((current) => [...current, created as Student]);
-          }
-        }}
+        defaultGroupId=""
+        onCreated={(created) => setStudents((current) => [...current, created as Student])}
       />
       <StudentDetailsModal open={activeModal === "view"} onClose={closeModal} student={selectedStudent} />
       <PayModal

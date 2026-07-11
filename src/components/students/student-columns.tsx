@@ -13,13 +13,23 @@ const localeTextSort: SortingFn<Student> = (rowA, rowB, columnId) =>
   String(rowA.getValue(columnId)).localeCompare(String(rowB.getValue(columnId)), "es", { sensitivity: "base" });
 
 interface BuildColumnsArgs {
-  groupName: string;
+  /** Resuelve el nombre de grupo a mostrar para cada fila (constante en la vista de un solo
+   *  grupo; depende de student.grupoId en la vista global de todos los alumnos). */
+  resolveGroupName: (student: Student) => string;
+  /** Universidad(es) ligada(s) al alumno (["No aplica"] si su ingresoA no es Universidad o no tiene ninguna). */
+  resolveUniversidad: (student: Student) => string[];
   onView: (student: Student) => void;
   onPay: (student: Student) => void;
   onHistory: (student: Student) => void;
 }
 
-export function buildStudentColumns({ groupName, onView, onPay, onHistory }: BuildColumnsArgs): ColumnDef<Student>[] {
+export function buildStudentColumns({
+  resolveGroupName,
+  resolveUniversidad,
+  onView,
+  onPay,
+  onHistory,
+}: BuildColumnsArgs): ColumnDef<Student>[] {
   return [
     {
       id: "foto",
@@ -40,10 +50,10 @@ export function buildStudentColumns({ groupName, onView, onPay, onHistory }: Bui
     {
       id: "grupo",
       header: "GRUPO",
-      accessorFn: () => groupName,
+      accessorFn: (row) => resolveGroupName(row),
       enableSorting: true,
       sortingFn: localeTextSort,
-      cell: () => <span className="text-sm text-zinc-600 dark:text-zinc-400">{groupName}</span>,
+      cell: ({ row }) => <span className="text-sm text-zinc-600 dark:text-zinc-400">{resolveGroupName(row.original)}</span>,
     },
     {
       id: "nombreCompleto",
@@ -62,9 +72,18 @@ export function buildStudentColumns({ groupName, onView, onPay, onHistory }: Bui
     {
       id: "universidad",
       header: "UNIVERSIDAD",
-      accessorKey: "escuelaProcedencia",
+      accessorFn: (row) => resolveUniversidad(row).join(", "),
       enableSorting: true,
       sortingFn: localeTextSort,
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-0.5">
+          {resolveUniversidad(row.original).map((nombre, index) => (
+            <span key={index} className="text-sm text-zinc-600 dark:text-zinc-400">
+              {nombre}
+            </span>
+          ))}
+        </div>
+      ),
     },
     {
       id: "nombre",

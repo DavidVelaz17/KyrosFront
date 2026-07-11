@@ -1,22 +1,46 @@
-import type { CreateGroupInput, Group } from "@/lib/types/group";
-import { LocalJsonStore } from "@/lib/storage/local-json-store";
-import { seedGroups } from "@/lib/mock/seed-groups";
-import { generateId } from "@/lib/utils/id";
-import { delay } from "@/lib/api/delay";
+"use server";
 
-const groupsStore = new LocalJsonStore<Group>("kyros:groups", seedGroups);
+import type { CreateGroupInput, Group } from "@/lib/types/group";
+import { apiFetch } from "@/lib/api/http";
+
+interface GrupoDto {
+  idGrupo: number;
+  nombreGrupo: string;
+  fechaInicio: string;
+  nombrePlantel: string;
+}
+
+function toGroup(dto: GrupoDto): Group {
+  return {
+    id: String(dto.idGrupo),
+    nombre: dto.nombreGrupo,
+    fechaInicio: dto.fechaInicio,
+    plantel: dto.nombrePlantel,
+  };
+}
 
 export async function listGroups(): Promise<Group[]> {
-  return delay(groupsStore.getAll());
+  const dtos = await apiFetch<GrupoDto[]>("/api/grupos");
+  return dtos.map(toGroup);
 }
 
 export async function getGroup(id: string): Promise<Group | null> {
-  const group = groupsStore.getAll().find((item) => item.id === id) ?? null;
-  return delay(group);
+  try {
+    const dto = await apiFetch<GrupoDto>(`/api/grupos/${id}`);
+    return toGroup(dto);
+  } catch {
+    return null;
+  }
 }
 
 export async function createGroup(input: CreateGroupInput): Promise<Group> {
-  const group: Group = { id: generateId(), ...input };
-  groupsStore.add(group);
-  return delay(group);
+  const dto = await apiFetch<GrupoDto>("/api/grupos", {
+    method: "POST",
+    body: JSON.stringify({
+      nombreGrupo: input.nombre,
+      fechaInicio: input.fechaInicio,
+      nombrePlantel: input.plantel,
+    }),
+  });
+  return toGroup(dto);
 }

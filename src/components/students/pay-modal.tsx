@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
-import { PAYMENT_CONCEPT_OPTIONS, PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS } from "@/lib/types/payment";
+import { PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS } from "@/lib/types/payment";
 import type { Payment } from "@/lib/types/payment";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
@@ -27,7 +27,7 @@ function sanitizeAmountInput(raw: string): string {
 }
 
 const PaySchema = z.object({
-  concepto: z.enum(PAYMENT_CONCEPT_OPTIONS),
+  concepto: z.string().min(1, "El concepto es requerido"),
   tipoMensualidad: z.enum(PAYMENT_PLAN_TYPE_OPTIONS),
   monto: z.coerce.number({ error: "El monto es requerido" }).positive("El monto debe ser mayor a 0"),
   metodoPago: z.enum(PAYMENT_METHOD_OPTIONS),
@@ -94,16 +94,26 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Registrar pago" description={studentFullName(student)} size="sm">
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Registrar pago"
+      description={studentFullName(student)}
+      size="sm"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="pay-form" disabled={isSubmitting}>
+            {isSubmitting ? "Guardando..." : "Registrar pago"}
+          </Button>
+        </div>
+      }
+    >
+      <form id="pay-form" className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
         <Field label="Concepto" htmlFor="concepto" error={errors.concepto?.message} required>
-          <Select id="concepto" {...register("concepto")}>
-            {PAYMENT_CONCEPT_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
+          <Input id="concepto" placeholder="Ej. Colegiatura agosto" {...register("concepto")} />
         </Field>
         <Field label="Tipo de mensualidad" htmlFor="tipoMensualidad" error={errors.tipoMensualidad?.message} required>
           <Select id="tipoMensualidad" {...register("tipoMensualidad")}>
@@ -149,14 +159,6 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
           <Textarea id="notas" {...register("notas")} />
         </Field>
 
-        <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Guardando..." : "Registrar pago"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

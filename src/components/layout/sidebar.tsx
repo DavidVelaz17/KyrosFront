@@ -8,28 +8,43 @@ import {
   ChevronDown,
   CreditCard,
   GraduationCap,
+  IdCard,
   Plus,
+  Shield,
   Users,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useGroups } from "@/components/groups/groups-provider";
 import { CreateGroupModal } from "@/components/groups/create-group-modal";
+import type { SessionUser } from "@/lib/types/auth";
+import { isAdmin } from "@/lib/types/auth";
 
 const NAV_LINKS = [
+  { href: "/dashboard/alumnos", label: "Alumnos", icon: IdCard },
   { href: "/dashboard/horarios", label: "Horarios", icon: Calendar },
   { href: "/dashboard/profesores", label: "Profesores", icon: Users },
   { href: "/dashboard/pagos", label: "Pagos", icon: CreditCard },
   { href: "/dashboard/acciones-rapidas", label: "Acciones rápidas", icon: Zap },
+  { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, adminOnly: true },
 ];
 
-export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen: boolean; onCloseMobile: () => void }) {
+export function Sidebar({
+  user,
+  mobileOpen,
+  onCloseMobile,
+}: {
+  user: SessionUser;
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}) {
   const pathname = usePathname();
   const { groups, loading } = useGroups();
   const [groupsExpanded, setGroupsExpanded] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
 
   const isGruposActive = pathname.startsWith("/dashboard/grupos");
+  const navLinks = NAV_LINKS.filter((link) => !link.adminOnly || isAdmin(user.rol));
 
   return (
     <>
@@ -111,7 +126,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen: boolean; on
           </div>
 
           <div className="mt-2 flex flex-col gap-0.5">
-            {NAV_LINKS.map((link) => {
+            {navLinks.map((link) => {
               const active = pathname.startsWith(link.href);
               const Icon = link.icon;
               return (

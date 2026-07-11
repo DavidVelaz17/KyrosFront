@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createSession, destroySession } from "@/lib/auth/session";
-import { DEMO_USERS } from "@/lib/auth/demo-users";
+import type { SessionUser } from "@/lib/types/auth";
 
 const LoginSchema = z.object({
-  email: z.string().min(1, "El correo es requerido").email("Correo inválido"),
+  usuario: z.string().min(1, "El usuario es requerido"),
   password: z.string().min(1, "La contraseña es requerida"),
 });
 
 export interface LoginFormState {
   errors?: {
-    email?: string[];
+    usuario?: string[];
     password?: string[];
   };
   message?: string;
@@ -20,7 +20,7 @@ export interface LoginFormState {
 
 export async function login(_state: LoginFormState, formData: FormData): Promise<LoginFormState> {
   const validatedFields = LoginSchema.safeParse({
-    email: formData.get("email"),
+    usuario: formData.get("usuario"),
     password: formData.get("password"),
   });
 
@@ -28,14 +28,24 @@ export async function login(_state: LoginFormState, formData: FormData): Promise
     return { errors: validatedFields.error.flatten().fieldErrors };
   }
 
-  const { email, password } = validatedFields.data;
-  const user = DEMO_USERS.find((candidate) => candidate.email === email && candidate.password === password);
-
-  if (!user) {
-    return { message: "Correo o contraseña incorrectos." };
+  const baseUrl = process.env.BACKEND_API_URL;
+  if (!baseUrl) {
+    return { message: "El servidor no está configurado (falta BACKEND_API_URL)." };
   }
 
-  await createSession({ email: user.email, nombre: user.nombre });
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(validatedFields.data),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return { message: "Usuario o contraseña incorrectos." };
+  }
+
+  const jwtResponse = (await response.json()) as SessionUser;
+  await createSession(jwtResponse);
   redirect("/dashboard/grupos");
 }
 

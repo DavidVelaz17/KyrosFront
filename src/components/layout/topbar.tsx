@@ -19,10 +19,10 @@ export function Topbar({ user, onToggleSidebar }: { user: SessionUser; onToggleS
 
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user.nombre}</p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
+          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{user.nombreUsuario}</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{user.usuario}</p>
         </div>
-        <Avatar label={user.nombre.slice(0, 2)} size={36} />
+        <Avatar label={user.nombreUsuario.slice(0, 2)} size={36} />
         <form action={logout}>
           <button
             type="submit"

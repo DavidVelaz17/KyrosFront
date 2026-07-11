@@ -13,7 +13,7 @@ export function DashboardShell({ user, children }: { user: SessionUser; children
   return (
     <GroupsProvider>
       <div className="flex h-dvh overflow-hidden bg-zinc-50 dark:bg-zinc-950">
-        <Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
+        <Sidebar user={user} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Topbar user={user} onToggleSidebar={() => setMobileOpen((value) => !value)} />
           <main className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</main>

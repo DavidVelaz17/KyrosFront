@@ -4,7 +4,6 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { GraduationCap } from "lucide-react";
 import { login, type LoginFormState } from "@/lib/auth/actions";
-import { DEMO_CREDENTIALS_HINT } from "@/lib/auth/demo-users";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,8 +33,8 @@ export function LoginForm() {
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
-        <Field label="Correo electrónico" htmlFor="email" error={state.errors?.email?.[0]} required>
-          <Input id="email" name="email" type="email" autoComplete="email" placeholder="tucorreo@kyros.com" />
+        <Field label="Usuario" htmlFor="usuario" error={state.errors?.usuario?.[0]} required>
+          <Input id="usuario" name="usuario" type="text" autoComplete="username" placeholder="usuario" />
         </Field>
         <Field label="Contraseña" htmlFor="password" error={state.errors?.password?.[0]} required>
           <Input id="password" name="password" type="password" autoComplete="current-password" placeholder="••••••••" />
@@ -45,13 +44,6 @@ export function LoginForm() {
 
         <SubmitButton />
       </form>
-
-      <div className="mt-6 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
-        <p className="font-medium text-zinc-600 dark:text-zinc-300">Credenciales de prueba</p>
-        <p className="mt-1">
-          {DEMO_CREDENTIALS_HINT.email} / {DEMO_CREDENTIALS_HINT.password}
-        </p>
-      </div>
     </div>
   );
 }

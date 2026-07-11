@@ -55,8 +55,24 @@ export function CreateGroupModal({ open, onClose }: { open: boolean; onClose: ()
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo grupo" description="Crea un grupo para inscribir alumnos." size="sm">
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Nuevo grupo"
+      description="Crea un grupo para inscribir alumnos."
+      size="sm"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" form="create-group-form" disabled={isSubmitting}>
+            {isSubmitting ? "Creando..." : "Crear grupo"}
+          </Button>
+        </div>
+      }
+    >
+      <form id="create-group-form" className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
         <Field label="Nombre del grupo" htmlFor="nombre" error={errors.nombre?.message} required>
           <Input id="nombre" placeholder="Ej. Sistemas Computacionales - Grupo A" {...register("nombre")} />
         </Field>
@@ -75,14 +91,6 @@ export function CreateGroupModal({ open, onClose }: { open: boolean; onClose: ()
             ))}
           </Select>
         </Field>
-        <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creando..." : "Crear grupo"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );
