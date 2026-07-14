@@ -1,16 +1,22 @@
 "use server";
 
-import type { CreatePaymentInput, Payment, PaymentConcept, PaymentMethod } from "@/lib/types/payment";
+import type { CreatePaymentInput, EstatusCargo, Payment, PaymentConcept, PaymentMethod } from "@/lib/types/payment";
 import {
   METODO_PAGO_FROM_BACKEND,
   METODO_PAGO_TO_BACKEND,
   TIPO_MENSUALIDAD_FROM_BACKEND,
   TIPO_MENSUALIDAD_TO_BACKEND,
 } from "@/lib/types/payment";
+import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
 import { apiFetch } from "@/lib/api/http";
 import { createCargo, listCargosByStudent, type CargoDto } from "@/lib/api/cargos";
 import { getSession } from "@/lib/auth/session";
 import { todayISODate } from "@/lib/utils/format";
+
+interface PagoUsuarioRef {
+  idUsuario: number;
+  nombreUsuario: string;
+}
 
 interface PagoDto {
   idPago: number;
@@ -18,6 +24,8 @@ interface PagoDto {
   fechaPago: string;
   metodoPago: string;
   cargo: CargoDto;
+  usuario: PagoUsuarioRef | null;
+  requiereFactura: boolean;
 }
 
 /**
@@ -28,12 +36,20 @@ function toPayment(dto: PagoDto): Payment {
   return {
     id: String(dto.idPago),
     studentId: String(dto.cargo.estudiante.idEstudiante),
+    studentNombre: `${dto.cargo.estudiante.nombre} ${dto.cargo.estudiante.apellidoPaterno} ${dto.cargo.estudiante.apellidoMaterno}`,
+    grupoId: dto.cargo.estudiante.grupo ? String(dto.cargo.estudiante.grupo.idGrupo) : "",
+    grupoNombre: dto.cargo.estudiante.grupo?.nombreGrupo ?? "Sin grupo",
     concepto: (dto.cargo.conceptoCargo ?? "Otro") as PaymentConcept,
     tipoMensualidad: TIPO_MENSUALIDAD_FROM_BACKEND[dto.cargo.tipoMensualidadCargo] ?? "Pago completo",
     monto: dto.montoPagadoPago,
     metodoPago: METODO_PAGO_FROM_BACKEND[dto.metodoPago] ?? "Efectivo",
     fecha: dto.fechaPago,
     notas: "",
+    idCargo: String(dto.cargo.idCargo),
+    estatusCargo: dto.cargo.estatusCargo as EstatusCargo,
+    usuarioNombre: dto.usuario?.nombreUsuario ?? "—",
+    requiereFactura: dto.requiereFactura,
+    ingresoA: INGRESO_A_FROM_BACKEND[dto.cargo.estudiante.ingresoA] ?? "Universidad",
   };
 }
 
@@ -48,6 +64,11 @@ export async function listPaymentsByStudent(studentId: string): Promise<Payment[
     cargos.map((cargo) => apiFetch<PagoDto[]>(`/api/pagos/cargo/${cargo.idCargo}`))
   );
   return pagosPorCargo.flat().map(toPayment);
+}
+
+export async function listPaymentsByCargo(idCargo: number): Promise<Payment[]> {
+  const dtos = await apiFetch<PagoDto[]>(`/api/pagos/cargo/${idCargo}`);
+  return dtos.map(toPayment);
 }
 
 export async function createPayment(input: CreatePaymentInput): Promise<Payment> {
@@ -74,6 +95,8 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
       fechaPago: fecha,
       metodoPago: METODO_PAGO_TO_BACKEND[input.metodoPago],
       idCargo: cargo.idCargo,
+      idUsuario: session.idUsuario,
+      requiereFactura: input.requiereFactura,
     }),
   });
 
@@ -85,10 +108,16 @@ interface CreatePagoForCargoInput {
   montoPagadoPago: number;
   fechaPago: string;
   metodoPago: PaymentMethod;
+  requiereFactura: boolean;
 }
 
 /** Registra un pago sobre un cargo ya existente, sin crear uno nuevo (acción rápida "Nuevo pago"). */
 export async function createPagoForCargo(input: CreatePagoForCargoInput): Promise<Payment> {
+  const session = await getSession();
+  if (!session) {
+    throw new Error("No hay una sesión activa.");
+  }
+
   const pagoDto = await apiFetch<PagoDto>("/api/pagos", {
     method: "POST",
     body: JSON.stringify({
@@ -96,6 +125,8 @@ export async function createPagoForCargo(input: CreatePagoForCargoInput): Promis
       fechaPago: input.fechaPago,
       metodoPago: METODO_PAGO_TO_BACKEND[input.metodoPago],
       idCargo: input.idCargo,
+      idUsuario: session.idUsuario,
+      requiereFactura: input.requiereFactura,
     }),
   });
 

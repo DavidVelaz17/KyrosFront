@@ -8,9 +8,21 @@ const TONE_CLASSES = {
   amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
 } as const;
 
-export function Badge({ tone = "neutral", children }: { tone?: keyof typeof TONE_CLASSES; children: ReactNode }) {
+export function Badge({
+  tone = "neutral",
+  title,
+  children,
+}: {
+  tone?: keyof typeof TONE_CLASSES;
+  /** Tooltip nativo (ej. describir qué significa un estatus, para evitar malentendidos). */
+  title?: string;
+  children: ReactNode;
+}) {
   return (
-    <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", TONE_CLASSES[tone])}>
+    <span
+      title={title}
+      className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", TONE_CLASSES[tone])}
+    >
       {children}
     </span>
   );

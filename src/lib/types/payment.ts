@@ -1,3 +1,5 @@
+import type { IngresoA } from "@/lib/types/student";
+
 // El concepto es texto libre (lo que el usuario escriba), no un catálogo fijo.
 export type PaymentConcept = string;
 
@@ -15,18 +17,45 @@ export const ESTATUS_CARGO_OPTIONS = ["PENDIENTE", "PARCIAL", "PAGADO", "VENCIDO
 
 export type EstatusCargo = (typeof ESTATUS_CARGO_OPTIONS)[number];
 
+// Descripción corta de cada estatus, para mostrar junto al selector/badge donde aparezca y
+// evitar que se confundan (ej. "Parcial" vs "Vencido"). Ver components/ui/badge.tsx (prop
+// `title`, tooltip nativo) y los selects de estatus en new-cargo-modal.tsx / new-cargo-section.tsx.
+export const ESTATUS_CARGO_DESCRIPTIONS: Record<EstatusCargo, string> = {
+  PENDIENTE: "Aún no se ha registrado ningún pago sobre este cargo.",
+  PARCIAL: "Ya se abonó parte del monto; queda un saldo pendiente por cobrar.",
+  PAGADO: "Se cubrió el monto completo del cargo; no queda saldo pendiente.",
+  VENCIDO: "Pasó la fecha de vencimiento sin haberse cubierto por completo.",
+};
+
 export interface Payment {
   id: string;
   studentId: string;
+  /** Solo para mostrar/filtrar en tablas (ej. Pagos): evita tener que cruzar con listAllStudents(). */
+  studentNombre: string;
+  grupoId: string;
+  grupoNombre: string;
   concepto: PaymentConcept;
   tipoMensualidad: PaymentPlanType;
   monto: number;
   metodoPago: PaymentMethod;
   fecha: string;
   notas: string;
+  idCargo: string;
+  estatusCargo: EstatusCargo;
+  /** Quién registró este pago. "—" en pagos creados antes de que se agregara este dato. */
+  usuarioNombre: string;
+  /** Si el alumno/tutor pidió factura por este pago. Se captura al registrar el pago. */
+  requiereFactura: boolean;
+  /** IngresoA del alumno al momento de consultar (no del pago en sí); útil para filtrar reportes. */
+  ingresoA: IngresoA;
 }
 
-export type CreatePaymentInput = Omit<Payment, "id" | "fecha"> & {
+// Los campos derivados (studentNombre, grupoNombre, idCargo, estatusCargo, usuarioNombre,
+// ingresoA) solo se leen del backend al mostrar pagos; no se piden al crear uno.
+export type CreatePaymentInput = Omit<
+  Payment,
+  "id" | "fecha" | "studentNombre" | "grupoId" | "grupoNombre" | "idCargo" | "estatusCargo" | "usuarioNombre" | "ingresoA"
+> & {
   fecha?: string;
 };
 

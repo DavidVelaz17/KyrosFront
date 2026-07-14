@@ -15,6 +15,7 @@ import { StudentsTable } from "@/components/students/students-table";
 import { buildStudentColumns } from "@/components/students/student-columns";
 import { StudentFormModal } from "@/components/students/student-form-modal";
 import { StudentDetailsModal } from "@/components/students/student-details-modal";
+import { BajaAlumnoModal } from "@/components/students/baja-alumno-modal";
 import { PayModal } from "@/components/students/pay-modal";
 import { PaymentHistoryModal } from "@/components/students/payment-history-modal";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { STUDENT_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/student-columns";
 import { formatDate } from "@/lib/utils/format";
+import { cargoAlertRowClass } from "@/lib/utils/cargo";
 import { resolveStudentUniversidades, useStudentUniversidades } from "@/hooks/use-student-universidades";
+import { useStudentCargoAlerts } from "@/hooks/use-student-cargo-alerts";
 
-type ModalKind = "create" | "view" | "pay" | "history" | null;
+type ModalKind = "create" | "edit" | "view" | "pay" | "history" | "baja" | null;
 
 export function StudentsPage({ group }: { group: Group }) {
   const { groups } = useGroups();
@@ -63,6 +66,7 @@ export function StudentsPage({ group }: { group: Group }) {
   }, [group.id]);
 
   const universidadMap = useStudentUniversidades(students);
+  const cargoAlerts = useStudentCargoAlerts(students);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +96,10 @@ export function StudentsPage({ group }: { group: Group }) {
           setSelectedStudent(student);
           setActiveModal("view");
         },
+        onEdit: (student) => {
+          setSelectedStudent(student);
+          setActiveModal("edit");
+        },
         onPay: (student) => {
           setSelectedStudent(student);
           setActiveModal("pay");
@@ -104,6 +112,10 @@ export function StudentsPage({ group }: { group: Group }) {
             setHistoryPayments(data);
             setHistoryLoading(false);
           });
+        },
+        onBaja: (student) => {
+          setSelectedStudent(student);
+          setActiveModal("baja");
         },
       }),
     [group.nombre, universidadMap]
@@ -163,21 +175,36 @@ export function StudentsPage({ group }: { group: Group }) {
           </Button>
         </div>
       ) : (
-        <StudentsTable data={filteredStudents} columns={columns} columnVisibility={columnVisibility} />
+        <StudentsTable
+          data={filteredStudents}
+          columns={columns}
+          columnVisibility={columnVisibility}
+          rowClassName={(student) => cargoAlertRowClass(cargoAlerts[student.id] ?? "none")}
+        />
       )}
 
       <StudentFormModal
-        open={activeModal === "create"}
+        open={activeModal === "create" || activeModal === "edit"}
         onClose={closeModal}
         groups={groups}
         defaultGroupId={group.id}
+        editStudent={activeModal === "edit" ? selectedStudent : null}
         onCreated={(created) => {
-          if (created.grupoId === group.id) {
-            setStudents((current) => [...current, created as Student]);
-          }
+          // Reemplaza en vez de duplicar: si "created" viene de reasignar/editar un alumno que
+          // ya estaba en esta lista, actualiza su fila en lugar de agregar una segunda.
+          setStudents((current) => {
+            const withoutPrevious = current.filter((student) => student.id !== created.id);
+            return created.grupoId === group.id ? [...withoutPrevious, created as Student] : withoutPrevious;
+          });
         }}
       />
       <StudentDetailsModal open={activeModal === "view"} onClose={closeModal} student={selectedStudent} />
+      <BajaAlumnoModal
+        open={activeModal === "baja"}
+        onClose={closeModal}
+        student={selectedStudent}
+        onBaja={(updated) => setStudents((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
+      />
       <PayModal
         open={activeModal === "pay"}
         onClose={closeModal}

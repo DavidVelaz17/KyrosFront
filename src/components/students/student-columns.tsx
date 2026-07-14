@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingFn } from "@tanstack/react-table";
-import { Eye, History, Wallet } from "lucide-react";
+import { Eye, History, Pencil, UserX, Wallet } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
 import { Avatar } from "@/components/ui/avatar";
@@ -19,16 +19,20 @@ interface BuildColumnsArgs {
   /** Universidad(es) ligada(s) al alumno (["No aplica"] si su ingresoA no es Universidad o no tiene ninguna). */
   resolveUniversidad: (student: Student) => string[];
   onView: (student: Student) => void;
+  onEdit: (student: Student) => void;
   onPay: (student: Student) => void;
   onHistory: (student: Student) => void;
+  onBaja: (student: Student) => void;
 }
 
 export function buildStudentColumns({
   resolveGroupName,
   resolveUniversidad,
   onView,
+  onEdit,
   onPay,
   onHistory,
+  onBaja,
 }: BuildColumnsArgs): ColumnDef<Student>[] {
   return [
     {
@@ -62,6 +66,17 @@ export function buildStudentColumns({
       enableSorting: true,
       sortingFn: localeTextSort,
       cell: ({ row }) => <span className="font-medium text-zinc-900 dark:text-zinc-100">{studentFullName(row.original)}</span>,
+    },
+    {
+      id: "estatus",
+      header: "ESTATUS",
+      accessorKey: "estatus",
+      enableSorting: true,
+      sortingFn: localeTextSort,
+      cell: ({ getValue }) => {
+        const estatus = getValue<string>();
+        return <Badge tone={estatus === "Baja" ? "amber" : "indigo"}>{estatus}</Badge>;
+      },
     },
     {
       id: "telefono",
@@ -180,6 +195,15 @@ export function buildStudentColumns({
           </button>
           <button
             type="button"
+            onClick={() => onEdit(row.original)}
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Editar alumno"
+            aria-label="Editar alumno"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => onPay(row.original)}
             className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             title="Pagar"
@@ -195,6 +219,16 @@ export function buildStudentColumns({
             aria-label="Historial de pagos"
           >
             <History className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onBaja(row.original)}
+            disabled={row.original.estatus === "Baja"}
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:disabled:text-zinc-700"
+            title={row.original.estatus === "Baja" ? "El alumno ya está dado de baja" : "Dar de baja"}
+            aria-label="Dar de baja"
+          >
+            <UserX className="h-4 w-4" />
           </button>
         </div>
       ),

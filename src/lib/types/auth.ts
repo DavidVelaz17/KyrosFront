@@ -19,3 +19,8 @@ export function canManageTeachers(rol: RolUsuario): boolean {
 export function isAdmin(rol: RolUsuario): boolean {
   return rol === "ADMIN";
 }
+
+/** La sección de Cargos (todos los adeudos del sistema) es para ADMIN y COORDINADOR. */
+export function isAdminOrCoordinador(rol: RolUsuario): boolean {
+  return rol === "ADMIN" || rol === "COORDINADOR";
+}

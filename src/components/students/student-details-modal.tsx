@@ -97,6 +97,15 @@ export function StudentDetailsModal({ open, onClose, student }: { open: boolean;
                       ))}
                     </div>
                   )}
+                  {destino.materias && destino.materias.length > 0 && (
+                    <div className="flex flex-col">
+                      {destino.materias.map((materia) => (
+                        <p key={materia.id} className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {materia.nombre}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

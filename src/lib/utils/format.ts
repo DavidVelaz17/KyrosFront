@@ -35,3 +35,12 @@ export function todayISODate(): string {
 export function initials(nombre: string, apellidoPaterno: string): string {
   return `${nombre.charAt(0)}${apellidoPaterno.charAt(0)}`.toUpperCase();
 }
+
+/** Strips everything but digits and a single decimal point, so only numbers can ever reach form state. */
+export function sanitizeAmountInput(raw: string): string {
+  const withDot = raw.replace(",", ".");
+  const digitsAndDot = withDot.replace(/[^0-9.]/g, "");
+  const firstDot = digitsAndDot.indexOf(".");
+  if (firstDot === -1) return digitsAndDot;
+  return digitsAndDot.slice(0, firstDot + 1) + digitsAndDot.slice(firstDot + 1).replace(/\./g, "");
+}

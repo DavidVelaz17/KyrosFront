@@ -3,6 +3,21 @@
 import { apiFetch } from "@/lib/api/http";
 import { getSession } from "@/lib/auth/session";
 
+export interface CargoEstudianteRef {
+  idEstudiante: number;
+  matricula: string;
+  nombre: string;
+  apellidoPaterno: string;
+  apellidoMaterno: string;
+  ingresoA: string;
+  grupo: { idGrupo: number; nombreGrupo: string } | null;
+}
+
+export interface CargoUsuarioRef {
+  idUsuario: number;
+  nombreUsuario: string;
+}
+
 export interface CargoDto {
   idCargo: number;
   tipoMensualidadCargo: string;
@@ -10,8 +25,8 @@ export interface CargoDto {
   montoTotalCargo: number;
   fechaVencimientoCargo: string;
   estatusCargo: string;
-  estudiante: { idEstudiante: number };
-  usuario: { idUsuario: number };
+  estudiante: CargoEstudianteRef;
+  usuario: CargoUsuarioRef;
 }
 
 interface CreateCargoInput {
@@ -45,6 +60,10 @@ export async function createCargo(input: CreateCargoInput): Promise<CargoDto> {
 
 export async function listCargosByStudent(idEstudiante: string): Promise<CargoDto[]> {
   return apiFetch<CargoDto[]>(`/api/cargos/estudiante/${idEstudiante}`);
+}
+
+export async function listAllCargos(): Promise<CargoDto[]> {
+  return apiFetch<CargoDto[]>("/api/cargos");
 }
 
 /** El resto del cargo es inmutable; solo su estatus puede transicionar (ej. al registrar un pago). */

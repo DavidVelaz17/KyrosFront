@@ -59,6 +59,7 @@ export function PaymentHistoryModal({ open, onClose, student, payments, loading 
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase text-zinc-500">Tipo</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase text-zinc-500">Monto</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase text-zinc-500">Método</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase text-zinc-500">Factura</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase text-zinc-500">Notas</th>
               </tr>
             </thead>
@@ -73,6 +74,9 @@ export function PaymentHistoryModal({ open, onClose, student, payments, loading 
                   <td className="px-4 py-2.5 font-medium">{formatCurrency(payment.monto)}</td>
                   <td className="px-4 py-2.5">
                     <Badge>{payment.metodoPago}</Badge>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <Badge tone={payment.requiereFactura ? "amber" : "neutral"}>{payment.requiereFactura ? "Sí" : "No"}</Badge>
                   </td>
                   <td className="px-4 py-2.5 text-zinc-500">{payment.notas || "—"}</td>
                 </tr>

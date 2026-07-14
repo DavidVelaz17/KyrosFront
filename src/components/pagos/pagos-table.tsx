@@ -4,30 +4,24 @@ import { useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
-import type { Student } from "@/lib/types/student";
+import type { Payment } from "@/lib/types/payment";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils/cn";
 
 const PAGE_SIZE = 20;
 
-interface StudentsTableProps {
-  data: Student[];
-  columns: ColumnDef<Student>[];
+interface PagosTableProps {
+  data: Payment[];
+  columns: ColumnDef<Payment>[];
   columnVisibility: VisibilityState;
-  /** Clases extra para la fila de ese alumno (ej. resaltar en amarillo/rojo por vencimiento de
-   *  cargo). Se aplican después del zebra-striping, así que un `bg-*` aquí lo gana (twMerge). */
-  rowClassName?: (student: Student) => string | undefined;
 }
 
-export function StudentsTable({ data, columns, columnVisibility, rowClassName }: StudentsTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+export function PagosTable({ data, columns, columnVisibility }: PagosTableProps) {
+  const [sorting, setSorting] = useState<SortingState>([{ id: "fecha", desc: true }]);
 
   const table = useReactTable({
     data,
     columns,
-    // Per-column `enableSorting: true` only takes effect if this table-level flag isn't false
-    // (TanStack ANDs both, it doesn't let a column override a table-wide "false"). Columns that
-    // should stay unsortable set `enableSorting: false` individually in buildStudentColumns.
     state: { columnVisibility, sorting },
     initialState: { pagination: { pageSize: PAGE_SIZE } },
     onSortingChange: setSorting,
@@ -80,8 +74,7 @@ export function StudentsTable({ data, columns, columnVisibility, rowClassName }:
                 key={row.id}
                 className={cn(
                   "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
-                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30",
-                  rowClassName?.(row.original)
+                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30"
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -94,7 +87,7 @@ export function StudentsTable({ data, columns, columnVisibility, rowClassName }:
             {table.getRowModel().rows.length === 0 && (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-zinc-500">
-                  No se encontraron alumnos con los filtros actuales.
+                  No se encontraron pagos con los filtros actuales.
                 </td>
               </tr>
             )}

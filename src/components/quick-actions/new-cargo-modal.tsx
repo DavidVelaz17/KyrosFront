@@ -5,7 +5,12 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { Student } from "@/lib/types/student";
-import { ESTATUS_CARGO_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS, TIPO_MENSUALIDAD_TO_BACKEND } from "@/lib/types/payment";
+import {
+  ESTATUS_CARGO_DESCRIPTIONS,
+  ESTATUS_CARGO_OPTIONS,
+  PAYMENT_PLAN_TYPE_OPTIONS,
+  TIPO_MENSUALIDAD_TO_BACKEND,
+} from "@/lib/types/payment";
 import { createCargoStandalone, type CargoDto } from "@/lib/api/cargos";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
@@ -13,16 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { StudentSearchField } from "@/components/quick-actions/student-search-field";
-import { todayISODate } from "@/lib/utils/format";
-
-/** Strips everything but digits and a single decimal point, so only numbers can ever reach the form state. */
-function sanitizeAmountInput(raw: string): string {
-  const withDot = raw.replace(",", ".");
-  const digitsAndDot = withDot.replace(/[^0-9.]/g, "");
-  const firstDot = digitsAndDot.indexOf(".");
-  if (firstDot === -1) return digitsAndDot;
-  return digitsAndDot.slice(0, firstDot + 1) + digitsAndDot.slice(firstDot + 1).replace(/\./g, "");
-}
+import { sanitizeAmountInput, todayISODate } from "@/lib/utils/format";
 
 const NewCargoSchema = z.object({
   tipoMensualidadCargo: z.enum(PAYMENT_PLAN_TYPE_OPTIONS),
@@ -59,16 +55,18 @@ export function NewCargoModal({ open, onClose, students, onCreated }: NewCargoMo
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<NewCargoFormInput, unknown, NewCargoFormOutput>({
     resolver: zodResolver(NewCargoSchema),
     defaultValues: DEFAULT_VALUES,
   });
 
+  const estatusCargo = watch("estatusCargo");
+
   useEffect(() => {
     if (!open) {
       reset(DEFAULT_VALUES);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets local selection state together with the form on close
       setSelectedStudent(null);
       setStudentError(undefined);
     }
@@ -157,11 +155,14 @@ export function NewCargoModal({ open, onClose, students, onCreated }: NewCargoMo
         <Field label="Estatus" htmlFor="estatusCargo" error={errors.estatusCargo?.message} required>
           <Select id="estatusCargo" {...register("estatusCargo")}>
             {ESTATUS_CARGO_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <option key={option} value={option} title={ESTATUS_CARGO_DESCRIPTIONS[option]}>
                 {option}
               </option>
             ))}
           </Select>
+          {estatusCargo && (
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{ESTATUS_CARGO_DESCRIPTIONS[estatusCargo]}</p>
+          )}
         </Field>
       </form>
     </Modal>

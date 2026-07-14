@@ -14,15 +14,18 @@ import { StudentsTable } from "@/components/students/students-table";
 import { buildStudentColumns } from "@/components/students/student-columns";
 import { StudentFormModal } from "@/components/students/student-form-modal";
 import { StudentDetailsModal } from "@/components/students/student-details-modal";
+import { BajaAlumnoModal } from "@/components/students/baja-alumno-modal";
 import { PayModal } from "@/components/students/pay-modal";
 import { PaymentHistoryModal } from "@/components/students/payment-history-modal";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { STUDENT_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/student-columns";
+import { cargoAlertRowClass } from "@/lib/utils/cargo";
 import { resolveStudentUniversidades, useStudentUniversidades } from "@/hooks/use-student-universidades";
+import { useStudentCargoAlerts } from "@/hooks/use-student-cargo-alerts";
 
-type ModalKind = "create" | "view" | "pay" | "history" | null;
+type ModalKind = "create" | "edit" | "view" | "pay" | "history" | "baja" | null;
 
 export function AllStudentsPage() {
   const { groups } = useGroups();
@@ -56,6 +59,7 @@ export function AllStudentsPage() {
 
   const groupNameById = useMemo(() => new Map(groups.map((group) => [group.id, group.nombre])), [groups]);
   const universidadMap = useStudentUniversidades(students);
+  const cargoAlerts = useStudentCargoAlerts(students);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +89,10 @@ export function AllStudentsPage() {
           setSelectedStudent(student);
           setActiveModal("view");
         },
+        onEdit: (student) => {
+          setSelectedStudent(student);
+          setActiveModal("edit");
+        },
         onPay: (student) => {
           setSelectedStudent(student);
           setActiveModal("pay");
@@ -97,6 +105,10 @@ export function AllStudentsPage() {
             setHistoryPayments(data);
             setHistoryLoading(false);
           });
+        },
+        onBaja: (student) => {
+          setSelectedStudent(student);
+          setActiveModal("baja");
         },
       }),
     [groupNameById, universidadMap]
@@ -150,17 +162,31 @@ export function AllStudentsPage() {
           </Button>
         </div>
       ) : (
-        <StudentsTable data={filteredStudents} columns={columns} columnVisibility={columnVisibility} />
+        <StudentsTable
+          data={filteredStudents}
+          columns={columns}
+          columnVisibility={columnVisibility}
+          rowClassName={(student) => cargoAlertRowClass(cargoAlerts[student.id] ?? "none")}
+        />
       )}
 
       <StudentFormModal
-        open={activeModal === "create"}
+        open={activeModal === "create" || activeModal === "edit"}
         onClose={closeModal}
         groups={groups}
         defaultGroupId=""
-        onCreated={(created) => setStudents((current) => [...current, created as Student])}
+        editStudent={activeModal === "edit" ? selectedStudent : null}
+        onCreated={(created) =>
+          setStudents((current) => [...current.filter((student) => student.id !== created.id), created as Student])
+        }
       />
       <StudentDetailsModal open={activeModal === "view"} onClose={closeModal} student={selectedStudent} />
+      <BajaAlumnoModal
+        open={activeModal === "baja"}
+        onClose={closeModal}
+        student={selectedStudent}
+        onBaja={(updated) => setStudents((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
+      />
       <PayModal
         open={activeModal === "pay"}
         onClose={closeModal}

@@ -1,6 +1,6 @@
 "use server";
 
-import type { CreateUsuarioInput, Usuario } from "@/lib/types/usuario";
+import type { CreateUsuarioInput, UpdateUsuarioInput, Usuario } from "@/lib/types/usuario";
 import type { RolUsuario } from "@/lib/types/auth";
 import { apiFetch } from "@/lib/api/http";
 
@@ -37,6 +37,28 @@ export async function createUsuario(input: CreateUsuarioInput): Promise<Usuario>
       direccionUsuario: input.direccionUsuario,
       rol: input.rol,
     }),
+  });
+  return toUsuario(dto);
+}
+
+export async function updateUsuario(id: string, input: UpdateUsuarioInput): Promise<Usuario> {
+  const dto = await apiFetch<UsuarioDto>(`/api/usuarios/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      nombreUsuario: input.nombreUsuario,
+      usuario: input.usuario,
+      direccionUsuario: input.direccionUsuario,
+      rol: input.rol,
+    }),
+  });
+  return toUsuario(dto);
+}
+
+/** Único camino para cambiar la contraseña de un usuario; no hay endpoint que la muestre. */
+export async function resetUsuarioPassword(id: string, nuevaPassword: string): Promise<Usuario> {
+  const dto = await apiFetch<UsuarioDto>(`/api/usuarios/${id}/password`, {
+    method: "PUT",
+    body: JSON.stringify({ nuevaPassword }),
   });
   return toUsuario(dto);
 }

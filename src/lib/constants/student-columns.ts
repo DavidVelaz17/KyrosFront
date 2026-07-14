@@ -8,8 +8,9 @@ export interface StudentColumnMeta {
 export const STUDENT_COLUMN_CATALOG: StudentColumnMeta[] = [
   { id: "foto", label: "Foto", defaultVisible: true },
   { id: "matricula", label: "Matrícula", defaultVisible: true },
-  { id: "grupo", label: "Grupo", defaultVisible: true },
+  { id: "grupo", label: "Grupo", defaultVisible: false },
   { id: "nombreCompleto", label: "Nombre completo", defaultVisible: true },
+  { id: "estatus", label: "Estatus", defaultVisible: true },
   { id: "telefono", label: "Teléfono", defaultVisible: true },
   { id: "universidad", label: "Universidad", defaultVisible: true },
   { id: "edad", label: "Edad", defaultVisible: false },

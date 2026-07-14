@@ -9,13 +9,14 @@ import { UsuariosTable } from "@/components/usuarios/usuarios-table";
 import { UsuariosFilterBar } from "@/components/usuarios/usuarios-filter-bar";
 import { UsuarioFormModal } from "@/components/usuarios/usuario-form-modal";
 import { UsuarioDetailsModal } from "@/components/usuarios/usuario-details-modal";
+import { ResetPasswordModal } from "@/components/usuarios/reset-password-modal";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { USUARIO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/usuario-columns";
 
-type ModalKind = "create" | "view" | null;
+type ModalKind = "create" | "edit" | "view" | "reset-password" | null;
 
 export function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
@@ -55,6 +56,14 @@ export function UsuariosPage() {
         onView: (usuario) => {
           setSelectedUsuario(usuario);
           setActiveModal("view");
+        },
+        onEdit: (usuario) => {
+          setSelectedUsuario(usuario);
+          setActiveModal("edit");
+        },
+        onResetPassword: (usuario) => {
+          setSelectedUsuario(usuario);
+          setActiveModal("reset-password");
         },
       }),
     []
@@ -105,11 +114,15 @@ export function UsuariosPage() {
       )}
 
       <UsuarioFormModal
-        open={activeModal === "create"}
+        open={activeModal === "create" || activeModal === "edit"}
         onClose={closeModal}
-        onCreated={(created) => setUsuarios((current) => [...current, created])}
+        editUsuario={activeModal === "edit" ? selectedUsuario : null}
+        onSaved={(saved) =>
+          setUsuarios((current) => [...current.filter((usuario) => usuario.id !== saved.id), saved])
+        }
       />
       <UsuarioDetailsModal open={activeModal === "view"} onClose={closeModal} usuario={selectedUsuario} />
+      <ResetPasswordModal open={activeModal === "reset-password"} onClose={closeModal} usuario={selectedUsuario} />
     </div>
   );
 }

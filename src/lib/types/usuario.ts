@@ -9,3 +9,6 @@ export interface Usuario {
 }
 
 export type CreateUsuarioInput = Omit<Usuario, "id"> & { password: string };
+
+// Editar un usuario nunca toca su contraseña (eso vive aparte, ver resetUsuarioPassword).
+export type UpdateUsuarioInput = Omit<Usuario, "id">;

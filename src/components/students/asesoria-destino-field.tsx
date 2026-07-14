@@ -81,6 +81,20 @@ export function AsesoriaDestinoField({ materias, slots, onChange, enabledDias, e
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledDias.join(",")]);
 
+  // Cuando `slots` llega precargado desde afuera (ej. al editar un alumno existente), abre
+  // los días correspondientes para que esas asesorías sean visibles en vez de quedar ocultas.
+  // Usa la forma funcional de setOpenDays (no el `openDays` del closure) para no duplicar
+  // entradas si este efecto corre más de una vez antes de que el estado se confirme.
+  useEffect(() => {
+    const diasConSlots = Array.from(new Set(slots.map((slot) => slot.dia).filter(Boolean)));
+    if (diasConSlots.length === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- expone asesorías precargadas expandiendo sus días
+    setOpenDays((current) => {
+      const faltantes = diasConSlots.filter((dia) => !current.includes(dia));
+      return faltantes.length === 0 ? current : [...current, ...faltantes];
+    });
+  }, [slots]);
+
   function toggleDay(dia: string) {
     if (!enabledDias.includes(dia)) return;
     if (openDays.includes(dia)) {

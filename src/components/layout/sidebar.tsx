@@ -10,6 +10,7 @@ import {
   GraduationCap,
   IdCard,
   Plus,
+  Receipt,
   Shield,
   Users,
   Zap,
@@ -17,16 +18,18 @@ import {
 import { cn } from "@/lib/utils/cn";
 import { useGroups } from "@/components/groups/groups-provider";
 import { CreateGroupModal } from "@/components/groups/create-group-modal";
-import type { SessionUser } from "@/lib/types/auth";
-import { isAdmin } from "@/lib/types/auth";
+import type { RolUsuario, SessionUser } from "@/lib/types/auth";
+import { isAdmin, isAdminOrCoordinador } from "@/lib/types/auth";
 
-const NAV_LINKS = [
+const QUICK_ACTIONS_LINK = { href: "/dashboard/acciones-rapidas", label: "Acciones rápidas", icon: Zap };
+
+const NAV_LINKS: { href: string; label: string; icon: typeof IdCard; visible?: (rol: RolUsuario) => boolean }[] = [
   { href: "/dashboard/alumnos", label: "Alumnos", icon: IdCard },
   { href: "/dashboard/horarios", label: "Horarios", icon: Calendar },
   { href: "/dashboard/profesores", label: "Profesores", icon: Users },
   { href: "/dashboard/pagos", label: "Pagos", icon: CreditCard },
-  { href: "/dashboard/acciones-rapidas", label: "Acciones rápidas", icon: Zap },
-  { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, adminOnly: true },
+  { href: "/dashboard/cargos", label: "Cargos", icon: Receipt, visible: isAdminOrCoordinador },
+  { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, visible: isAdmin },
 ];
 
 export function Sidebar({
@@ -44,7 +47,7 @@ export function Sidebar({
   const [createOpen, setCreateOpen] = useState(false);
 
   const isGruposActive = pathname.startsWith("/dashboard/grupos");
-  const navLinks = NAV_LINKS.filter((link) => !link.adminOnly || isAdmin(user.rol));
+  const navLinks = NAV_LINKS.filter((link) => !link.visible || link.visible(user.rol));
 
   return (
     <>
@@ -70,6 +73,22 @@ export function Sidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="mb-2 flex flex-col gap-0.5">
+            <Link
+              href={QUICK_ACTIONS_LINK.href}
+              onClick={onCloseMobile}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname.startsWith(QUICK_ACTIONS_LINK.href)
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                  : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              )}
+            >
+              <QUICK_ACTIONS_LINK.icon className="h-4 w-4" />
+              {QUICK_ACTIONS_LINK.label}
+            </Link>
+          </div>
+
           <div>
             <button
               type="button"

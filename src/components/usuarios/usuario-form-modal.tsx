@@ -11,19 +11,21 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { ROL_USUARIO_OPTIONS } from "@/lib/types/auth";
 import type { Usuario } from "@/lib/types/usuario";
-import { createUsuario } from "@/lib/api/usuarios";
+import { createUsuario, updateUsuario } from "@/lib/api/usuarios";
 
-const CreateUsuarioSchema = z.object({
+// La contraseña solo aplica al crear (al editar nunca se toca: ver ResetPasswordModal), así
+// que aquí queda opcional y se exige a mano en onSubmit solo cuando no hay editUsuario.
+const UsuarioFormSchema = z.object({
   nombreUsuario: z.string().min(1, "El nombre es requerido"),
   usuario: z.string().min(1, "El usuario (login) es requerido"),
-  password: z.string().min(1, "La contraseña es requerida"),
+  password: z.string().optional(),
   direccionUsuario: z.string().min(1, "La dirección es requerida"),
   rol: z.enum(ROL_USUARIO_OPTIONS),
 });
 
-type CreateUsuarioValues = z.infer<typeof CreateUsuarioSchema>;
+type UsuarioFormValues = z.infer<typeof UsuarioFormSchema>;
 
-const DEFAULT_VALUES: CreateUsuarioValues = {
+const DEFAULT_VALUES: UsuarioFormValues = {
   nombreUsuario: "",
   usuario: "",
   password: "",
@@ -31,30 +33,63 @@ const DEFAULT_VALUES: CreateUsuarioValues = {
   rol: "SECRETARIO",
 };
 
+function buildValues(editUsuario: Usuario | null): UsuarioFormValues {
+  if (!editUsuario) return DEFAULT_VALUES;
+  return {
+    nombreUsuario: editUsuario.nombreUsuario,
+    usuario: editUsuario.usuario,
+    password: "",
+    direccionUsuario: editUsuario.direccionUsuario,
+    rol: editUsuario.rol,
+  };
+}
+
 interface UsuarioFormModalProps {
   open: boolean;
   onClose: () => void;
-  onCreated: (usuario: Usuario) => void;
+  onSaved: (usuario: Usuario) => void;
+  /** Si se indica, el modal abre en modo edición para este usuario (sin campo de contraseña). */
+  editUsuario?: Usuario | null;
 }
 
-export function UsuarioFormModal({ open, onClose, onCreated }: UsuarioFormModalProps) {
+export function UsuarioFormModal({ open, onClose, onSaved, editUsuario = null }: UsuarioFormModalProps) {
   const {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors, isSubmitting },
-  } = useForm<CreateUsuarioValues>({
-    resolver: zodResolver(CreateUsuarioSchema),
-    defaultValues: DEFAULT_VALUES,
+  } = useForm<UsuarioFormValues>({
+    resolver: zodResolver(UsuarioFormSchema),
+    defaultValues: buildValues(editUsuario),
   });
 
   useEffect(() => {
-    if (!open) reset(DEFAULT_VALUES);
-  }, [open, reset]);
+    if (open) {
+      reset(buildValues(editUsuario));
+    } else {
+      reset(DEFAULT_VALUES);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editUsuario]);
 
-  async function onSubmit(values: CreateUsuarioValues) {
-    const created = await createUsuario(values);
-    onCreated(created);
+  async function onSubmit(values: UsuarioFormValues) {
+    if (editUsuario) {
+      const updated = await updateUsuario(editUsuario.id, {
+        nombreUsuario: values.nombreUsuario,
+        usuario: values.usuario,
+        direccionUsuario: values.direccionUsuario,
+        rol: values.rol,
+      });
+      onSaved(updated);
+    } else {
+      if (!values.password) {
+        setError("password", { message: "La contraseña es requerida" });
+        return;
+      }
+      const created = await createUsuario({ ...values, password: values.password });
+      onSaved(created);
+    }
     onClose();
   }
 
@@ -62,8 +97,8 @@ export function UsuarioFormModal({ open, onClose, onCreated }: UsuarioFormModalP
     <Modal
       open={open}
       onClose={onClose}
-      title="Nuevo usuario"
-      description="Registra un usuario con el rol que necesite."
+      title={editUsuario ? "Editar usuario" : "Nuevo usuario"}
+      description={editUsuario ? "Modifica los datos del usuario." : "Registra un usuario con el rol que necesite."}
       size="md"
       footer={
         <div className="flex justify-end gap-2">
@@ -71,7 +106,7 @@ export function UsuarioFormModal({ open, onClose, onCreated }: UsuarioFormModalP
             Cancelar
           </Button>
           <Button type="submit" form="usuario-form" disabled={isSubmitting}>
-            {isSubmitting ? "Guardando..." : "Guardar usuario"}
+            {isSubmitting ? "Guardando..." : editUsuario ? "Guardar cambios" : "Guardar usuario"}
           </Button>
         </div>
       }
@@ -83,9 +118,11 @@ export function UsuarioFormModal({ open, onClose, onCreated }: UsuarioFormModalP
         <Field label="Usuario" htmlFor="usuario" error={errors.usuario?.message} required>
           <Input id="usuario" autoComplete="username" {...register("usuario")} />
         </Field>
-        <Field label="Contraseña" htmlFor="password" error={errors.password?.message} required>
-          <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
-        </Field>
+        {!editUsuario && (
+          <Field label="Contraseña" htmlFor="password" error={errors.password?.message} required>
+            <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
+          </Field>
+        )}
         <Field label="Rol" htmlFor="rol" error={errors.rol?.message} required>
           <Select id="rol" {...register("rol")}>
             {ROL_USUARIO_OPTIONS.map((option) => (

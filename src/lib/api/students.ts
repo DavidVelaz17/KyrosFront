@@ -1,8 +1,17 @@
 "use server";
 
-import type { CreateStudentInput, Horario, IngresoA, Student } from "@/lib/types/student";
+import type { CreateStudentInput, EstatusEstudiante, Horario, IngresoA, Student } from "@/lib/types/student";
+import { INGRESO_A_FROM_BACKEND, INGRESO_A_TO_BACKEND } from "@/lib/types/student";
 import { apiFetch, apiFetchMultipart } from "@/lib/api/http";
-import { todayISODate } from "@/lib/utils/format";
+
+const ESTATUS_TO_BACKEND: Record<EstatusEstudiante, string> = {
+  Activo: "ACTIVO",
+  Baja: "BAJA",
+};
+const ESTATUS_FROM_BACKEND: Record<string, EstatusEstudiante> = {
+  ACTIVO: "Activo",
+  BAJA: "Baja",
+};
 
 const HORARIO_TO_BACKEND: Record<Horario, string> = {
   Escolarizado: "ESCOLARIZADO",
@@ -13,21 +22,6 @@ const HORARIO_FROM_BACKEND: Record<string, Horario> = {
   ESCOLARIZADO: "Escolarizado",
   SABATINO: "Sabatino",
   VIRTUAL: "Virtual",
-};
-
-const INGRESO_A_TO_BACKEND: Record<IngresoA, string> = {
-  Universidad: "UNIVERSIDAD",
-  Bachillerato: "BACHILLERATO",
-  Secundaria: "SECUNDARIA",
-  Asesorías: "ASESORIAS",
-  "Curso de verano": "CURSO_VERANO",
-};
-const INGRESO_A_FROM_BACKEND: Record<string, IngresoA> = {
-  UNIVERSIDAD: "Universidad",
-  BACHILLERATO: "Bachillerato",
-  SECUNDARIA: "Secundaria",
-  ASESORIAS: "Asesorías",
-  CURSO_VERANO: "Curso de verano",
 };
 
 interface GrupoRefDto {
@@ -53,6 +47,7 @@ interface EstudianteDto {
   horario: string;
   ingresoA: string;
   grupo: GrupoRefDto | null;
+  estatus: string;
 }
 
 /** El backend guarda solo el path (`/uploads/xxx.ext`); se resuelve aquí a una URL absoluta
@@ -82,10 +77,11 @@ function toStudent(dto: EstudianteDto): Student {
     fechaInscripcion: dto.fechaInscripcion,
     grupoId: dto.grupo ? String(dto.grupo.idGrupo) : "",
     horario: HORARIO_FROM_BACKEND[dto.horario] ?? "Escolarizado",
+    estatus: ESTATUS_FROM_BACKEND[dto.estatus] ?? "Activo",
   };
 }
 
-function toForm(input: CreateStudentInput, fechaInscripcion: string) {
+function toForm(input: CreateStudentInput) {
   return {
     matricula: input.matricula,
     nombre: input.nombre,
@@ -100,7 +96,7 @@ function toForm(input: CreateStudentInput, fechaInscripcion: string) {
     direccion: input.direccion,
     foto: null,
     notas: input.notas || null,
-    fechaInscripcion,
+    fechaInscripcion: input.fechaInscripcion,
     horario: HORARIO_TO_BACKEND[input.horario],
     ingresoA: INGRESO_A_TO_BACKEND[input.ingresoA],
     idGrupo: input.grupoId ? Number(input.grupoId) : null,
@@ -129,7 +125,25 @@ export async function getStudent(id: string): Promise<Student | null> {
 export async function createStudent(input: CreateStudentInput): Promise<Student> {
   const dto = await apiFetch<EstudianteDto>("/api/estudiantes", {
     method: "POST",
-    body: JSON.stringify(toForm(input, todayISODate())),
+    body: JSON.stringify(toForm(input)),
+  });
+  return toStudent(dto);
+}
+
+export async function updateStudent(id: string, input: CreateStudentInput): Promise<Student> {
+  const dto = await apiFetch<EstudianteDto>(`/api/estudiantes/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(toForm(input)),
+  });
+  return toStudent(dto);
+}
+
+/** Cambia el estatus del alumno (Activo/Baja). "Dar de baja" usa esto en vez de borrar al
+ *  alumno: el registro y su historial (pagos, destinos, etc.) se conservan. */
+export async function updateStudentEstatus(id: string, estatus: EstatusEstudiante): Promise<Student> {
+  const dto = await apiFetch<EstudianteDto>(`/api/estudiantes/${id}/estatus`, {
+    method: "PUT",
+    body: JSON.stringify({ estatus: ESTATUS_TO_BACKEND[estatus] }),
   });
   return toStudent(dto);
 }
@@ -157,9 +171,21 @@ export async function addDestino(studentId: string, idDestino: string, idCarrera
   await apiFetch<void>(`/api/estudiantes/${studentId}/destinos/${idDestino}${query}`, { method: "POST" });
 }
 
+/** Desvincula al alumno de un destino ya asignado (resuelto contra la tabla puente correcta
+ *  según su ingresoA actual en el backend). Usar antes de cambiar el ingresoA del alumno. */
+export async function removeDestino(studentId: string, idDestino: string): Promise<void> {
+  await apiFetch<void>(`/api/estudiantes/${studentId}/destinos/${idDestino}`, { method: "DELETE" });
+}
+
 export interface StudentDestinoCarrera {
+  carreraId: string;
   nombre: string;
   areaNombre: string;
+}
+
+export interface StudentDestinoMateria {
+  id: string;
+  nombre: string;
 }
 
 export interface StudentDestino {
@@ -170,6 +196,11 @@ export interface StudentDestino {
   /** Sólo presente cuando tipo es "Universidad": las carreras que ofrece esa universidad
    *  (vía la tabla puente carrera_universidad), con su área. */
   carreras?: StudentDestinoCarrera[];
+  /** Sólo presente cuando tipo es "Asesorías": las materias vinculadas a esa asesoría. */
+  materias?: StudentDestinoMateria[];
+  /** Sólo presente cuando tipo es "Asesorías": día y hora de la asesoría (códigos del backend). */
+  dia?: string;
+  hora?: string;
 }
 
 interface CarreraDto {
@@ -178,12 +209,20 @@ interface CarreraDto {
   area: { idArea: number; nombreArea: string } | null;
 }
 
+interface MateriaDto {
+  idMateria: number;
+  nombreMateria: string;
+}
+
 interface EstudianteDestinoDto {
   idRelacion: number;
   idDestino: number;
   nombreDestino: string;
   tipo: string;
   carreras: CarreraDto[] | null;
+  materias: MateriaDto[] | null;
+  dia: string | null;
+  hora: string | null;
 }
 
 /** Todos los destinos (universidad, bachillerato, secundaria, curso de verano o asesorías)
@@ -196,8 +235,12 @@ export async function getDestinos(studentId: string): Promise<StudentDestino[]> 
     nombre: dto.nombreDestino,
     tipo: INGRESO_A_FROM_BACKEND[dto.tipo] ?? "Universidad",
     carreras: dto.carreras?.map((carrera) => ({
+      carreraId: String(carrera.idCarrera),
       nombre: carrera.nombreCarrera,
       areaNombre: carrera.area?.nombreArea ?? "—",
     })),
+    materias: dto.materias?.map((materia) => ({ id: String(materia.idMateria), nombre: materia.nombreMateria })),
+    dia: dto.dia ?? undefined,
+    hora: dto.hora ?? undefined,
   }));
 }

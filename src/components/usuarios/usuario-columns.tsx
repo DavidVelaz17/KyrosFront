@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingFn } from "@tanstack/react-table";
-import { Eye } from "lucide-react";
+import { Eye, KeyRound, Pencil } from "lucide-react";
 import type { Usuario } from "@/lib/types/usuario";
 import type { RolUsuario } from "@/lib/types/auth";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +18,11 @@ const localeTextSort: SortingFn<Usuario> = (rowA, rowB, columnId) =>
 
 interface BuildColumnsArgs {
   onView: (usuario: Usuario) => void;
+  onEdit: (usuario: Usuario) => void;
+  onResetPassword: (usuario: Usuario) => void;
 }
 
-export function buildUsuarioColumns({ onView }: BuildColumnsArgs): ColumnDef<Usuario>[] {
+export function buildUsuarioColumns({ onView, onEdit, onResetPassword }: BuildColumnsArgs): ColumnDef<Usuario>[] {
   return [
     {
       id: "usuario",
@@ -71,6 +73,24 @@ export function buildUsuarioColumns({ onView }: BuildColumnsArgs): ColumnDef<Usu
             aria-label="Ver información"
           >
             <Eye className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit(row.original)}
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Editar usuario"
+            aria-label="Editar usuario"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onResetPassword(row.original)}
+            className="rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Restablecer contraseña"
+            aria-label="Restablecer contraseña"
+          >
+            <KeyRound className="h-4 w-4" />
           </button>
         </div>
       ),
