@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import type { Group } from "@/lib/types/group";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
@@ -10,6 +11,8 @@ import { listStudentsByGroup } from "@/lib/api/students";
 import { listPaymentsByStudent } from "@/lib/api/payments";
 import { listUniversidades } from "@/lib/api/destinos";
 import { useGroups } from "@/components/groups/groups-provider";
+import { GroupFormModal } from "@/components/groups/group-form-modal";
+import { DeleteGroupModal } from "@/components/groups/delete-group-modal";
 import { StudentsFilterBar } from "@/components/students/students-filter-bar";
 import { StudentsTable } from "@/components/students/students-table";
 import { buildStudentColumns } from "@/components/students/student-columns";
@@ -26,11 +29,18 @@ import { formatDate } from "@/lib/utils/format";
 import { cargoAlertRowClass } from "@/lib/utils/cargo";
 import { resolveStudentUniversidades, useStudentUniversidades } from "@/hooks/use-student-universidades";
 import { useStudentCargoAlerts } from "@/hooks/use-student-cargo-alerts";
+import { useSessionUser } from "@/components/auth/session-provider";
+import { isAdminOrCoordinador } from "@/lib/types/auth";
 
 type ModalKind = "create" | "edit" | "view" | "pay" | "history" | "baja" | null;
+type GroupModalKind = "edit" | "delete" | null;
 
 export function StudentsPage({ group }: { group: Group }) {
-  const { groups } = useGroups();
+  const router = useRouter();
+  const sessionUser = useSessionUser();
+  const canManageGroup = isAdminOrCoordinador(sessionUser.rol);
+  const { groups, removeGroup } = useGroups();
+  const [groupModal, setGroupModal] = useState<GroupModalKind>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -46,6 +56,11 @@ export function StudentsPage({ group }: { group: Group }) {
   const [historyPayments, setHistoryPayments] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [loadedGroupId, setLoadedGroupId] = useState<string | null>(null);
+
+  // GroupStudentsLoader pasa `group` como una foto fija tomada al montar; tras editarlo aquí
+  // mismo (GroupFormModal actualiza el contexto de grupos), esto refleja el cambio sin necesitar
+  // recargar la página ni levantar el estado hasta el loader.
+  const currentGroup = groups.find((candidate) => candidate.id === group.id) ?? group;
 
   if (group.id !== loadedGroupId) {
     setLoadedGroupId(group.id);
@@ -90,7 +105,7 @@ export function StudentsPage({ group }: { group: Group }) {
   const columns = useMemo(
     () =>
       buildStudentColumns({
-        resolveGroupName: () => group.nombre,
+        resolveGroupName: () => currentGroup.nombre,
         resolveUniversidad: (student) => resolveStudentUniversidades(student, universidadMap),
         onView: (student) => {
           setSelectedStudent(student);
@@ -118,7 +133,7 @@ export function StudentsPage({ group }: { group: Group }) {
           setActiveModal("baja");
         },
       }),
-    [group.nombre, universidadMap]
+    [currentGroup.nombre, universidadMap]
   );
 
   function closeModal() {
@@ -129,11 +144,35 @@ export function StudentsPage({ group }: { group: Group }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{group.nombre}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">{currentGroup.nombre}</h1>
+            {canManageGroup && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setGroupModal("edit")}
+                  className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                  title="Editar grupo"
+                  aria-label="Editar grupo"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGroupModal("delete")}
+                  className="rounded-md p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                  title="Eliminar grupo"
+                  aria-label="Eliminar grupo"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </div>
           <p className="mt-1 flex flex-wrap gap-x-3 text-sm text-zinc-500 dark:text-zinc-400">
-            <span>{group.plantel}</span>
+            <span>{currentGroup.plantel}</span>
             <span aria-hidden>·</span>
-            <span>Inicio: {formatDate(group.fechaInicio)}</span>
+            <span>Inicio: {formatDate(currentGroup.fechaInicio)}</span>
             <span aria-hidden>·</span>
             <span>
               {students.length} {students.length === 1 ? "alumno" : "alumnos"}
@@ -218,6 +257,25 @@ export function StudentsPage({ group }: { group: Group }) {
         payments={historyPayments}
         loading={historyLoading}
       />
+
+      {canManageGroup && (
+        <>
+          <GroupFormModal
+            open={groupModal === "edit"}
+            onClose={() => setGroupModal(null)}
+            editGroup={currentGroup}
+          />
+          <DeleteGroupModal
+            open={groupModal === "delete"}
+            onClose={() => setGroupModal(null)}
+            group={currentGroup}
+            onDeleted={(deleted) => {
+              removeGroup(deleted.id);
+              router.push("/dashboard/grupos");
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }

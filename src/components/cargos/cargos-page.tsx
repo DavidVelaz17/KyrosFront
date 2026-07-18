@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Receipt } from "lucide-react";
 import { listAllCargos, type CargoDto } from "@/lib/api/cargos";
 import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
-import { cargoFilterStatus } from "@/lib/utils/cargo";
+import { cargoAlertLevel, cargoAlertRowClass, cargoFilterStatus } from "@/lib/utils/cargo";
 import { useGroups } from "@/components/groups/groups-provider";
 import { CargosFilterBar } from "@/components/cargos/cargos-filter-bar";
 import { CargosTable } from "@/components/cargos/cargos-table";
@@ -85,7 +85,12 @@ export function CargosPage() {
       {cargos.length === 0 ? (
         <EmptyState icon={Receipt} title="Sin cargos registrados" description="Los cargos que se generen aparecerán aquí." />
       ) : (
-        <CargosTable data={filteredCargos} columns={columns} columnVisibility={columnVisibility} />
+        <CargosTable
+          data={filteredCargos}
+          columns={columns}
+          columnVisibility={columnVisibility}
+          rowClassName={(cargo) => cargoAlertRowClass(cargoAlertLevel(cargo))}
+        />
       )}
     </div>
   );

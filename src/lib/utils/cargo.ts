@@ -2,14 +2,6 @@ import { listCargosByStudent, type CargoDto } from "@/lib/api/cargos";
 import { listPaymentsByCargo } from "@/lib/api/payments";
 import type { EstatusCargo } from "@/lib/types/payment";
 
-/** El cargo pendiente de pago más reciente de una lista (mayor id, ignorando los ya PAGADO):
- *  es "lo próximo que debe" ese alumno. null si no tiene ninguno pendiente. */
-export function latestPendingCargo(cargos: CargoDto[]): CargoDto | null {
-  const pendientes = cargos.filter((cargo) => cargo.estatusCargo !== "PAGADO");
-  if (pendientes.length === 0) return null;
-  return pendientes.reduce((latest, cargo) => (cargo.idCargo > latest.idCargo ? cargo : latest));
-}
-
 export interface PendingCargo extends CargoDto {
   /** montoTotalCargo menos la suma de los pagos ya registrados sobre ese cargo. */
   montoRestante: number;
@@ -54,6 +46,21 @@ function alertLevelFromDate(estatusCargo: string, fechaVencimientoCargo: string)
 export function cargoAlertLevel(cargo: CargoDto | null): CargoAlertLevel {
   if (!cargo) return "none";
   return alertLevelFromDate(cargo.estatusCargo, cargo.fechaVencimientoCargo);
+}
+
+/** El nivel de alerta más urgente entre TODOS los cargos de un alumno (no solo el generado más
+ *  recientemente): un alumno puede tener varios cargos pendientes a la vez, y el que se le creó
+ *  después no es necesariamente el más urgente (ej. se le generó ya la mensualidad de agosto,
+ *  pero todavía debe la inscripción, vencida desde julio). "overdue" gana sobre "warning", que
+ *  gana sobre "none". */
+export function worstCargoAlertLevel(cargos: CargoDto[]): CargoAlertLevel {
+  let worst: CargoAlertLevel = "none";
+  for (const cargo of cargos) {
+    const level = cargoAlertLevel(cargo);
+    if (level === "overdue") return "overdue";
+    if (level === "warning") worst = "warning";
+  }
+  return worst;
 }
 
 /** Clases de fondo de fila para cada nivel de alerta, listas para pasarle a StudentsTable. */

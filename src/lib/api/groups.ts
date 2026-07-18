@@ -44,3 +44,21 @@ export async function createGroup(input: CreateGroupInput): Promise<Group> {
   });
   return toGroup(dto);
 }
+
+export async function updateGroup(id: string, input: CreateGroupInput): Promise<Group> {
+  const dto = await apiFetch<GrupoDto>(`/api/grupos/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      nombreGrupo: input.nombre,
+      fechaInicio: input.fechaInicio,
+      nombrePlantel: input.plantel,
+    }),
+  });
+  return toGroup(dto);
+}
+
+/** Los alumnos del grupo no se borran: el backend los desasocia (quedan "Sin grupo"), ver
+ *  fk_estudiante_grupo ON DELETE SET NULL en la migración V1. */
+export async function deleteGroup(id: string): Promise<void> {
+  await apiFetch<void>(`/api/grupos/${id}`, { method: "DELETE" });
+}

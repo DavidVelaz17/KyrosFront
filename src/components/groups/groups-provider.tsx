@@ -10,6 +10,8 @@ interface GroupsContextValue {
   loading: boolean;
   refresh: () => Promise<void>;
   addGroup: (group: Group) => void;
+  updateGroupInList: (group: Group) => void;
+  removeGroup: (id: string) => void;
 }
 
 const GroupsContext = createContext<GroupsContextValue | null>(null);
@@ -41,8 +43,18 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
     setGroups((current) => [...current, group]);
   }, []);
 
+  const updateGroupInList = useCallback((group: Group) => {
+    setGroups((current) => current.map((existing) => (existing.id === group.id ? group : existing)));
+  }, []);
+
+  const removeGroup = useCallback((id: string) => {
+    setGroups((current) => current.filter((group) => group.id !== id));
+  }, []);
+
   return (
-    <GroupsContext.Provider value={{ groups, loading, refresh, addGroup }}>{children}</GroupsContext.Provider>
+    <GroupsContext.Provider value={{ groups, loading, refresh, addGroup, updateGroupInList, removeGroup }}>
+      {children}
+    </GroupsContext.Provider>
   );
 }
 

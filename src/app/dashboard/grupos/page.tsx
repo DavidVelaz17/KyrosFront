@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { GraduationCap, Plus } from "lucide-react";
 import { useGroups } from "@/components/groups/groups-provider";
-import { CreateGroupModal } from "@/components/groups/create-group-modal";
+import { GroupFormModal } from "@/components/groups/group-form-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 
@@ -28,7 +28,7 @@ export default function GruposIndexPage() {
           </Button>
         }
       />
-      <CreateGroupModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <GroupFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
   );
 }

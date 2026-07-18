@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import type { Student } from "@/lib/types/student";
 import { listAllCargos, type CargoDto } from "@/lib/api/cargos";
-import { cargoAlertLevel, latestPendingCargo, type CargoAlertLevel } from "@/lib/utils/cargo";
+import { worstCargoAlertLevel, type CargoAlertLevel } from "@/lib/utils/cargo";
 
-/** Para cada alumno, el nivel de alerta de su cargo pendiente de pago más reciente: "overdue"
- *  si ya venció, "warning" si vence pronto, "none" si no tiene pendientes o aún falta tiempo.
- *  Trae todos los cargos en una sola llamada y los agrupa en el cliente, en vez de una
- *  llamada por alumno. */
+/** Para cada alumno, el peor nivel de alerta entre TODOS sus cargos pendientes: "overdue" si
+ *  alguno ya venció, "warning" si alguno vence pronto, "none" si no tiene pendientes o a todos
+ *  les falta tiempo. Trae todos los cargos en una sola llamada y los agrupa en el cliente, en
+ *  vez de una llamada por alumno. */
 export function useStudentCargoAlerts(students: Student[]): Record<string, CargoAlertLevel> {
   const [map, setMap] = useState<Record<string, CargoAlertLevel>>({});
   const studentIds = students.map((student) => student.id).join(",");
@@ -34,7 +34,7 @@ export function useStudentCargoAlerts(students: Student[]): Record<string, Cargo
       }
       const entries = studentIds
         .split(",")
-        .map((id) => [id, cargoAlertLevel(latestPendingCargo(byStudent.get(id) ?? []))] as const);
+        .map((id) => [id, worstCargoAlertLevel(byStudent.get(id) ?? [])] as const);
       setMap(Object.fromEntries(entries));
     });
     return () => {

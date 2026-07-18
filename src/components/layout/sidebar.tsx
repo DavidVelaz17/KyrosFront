@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useGroups } from "@/components/groups/groups-provider";
-import { CreateGroupModal } from "@/components/groups/create-group-modal";
+import { GroupFormModal } from "@/components/groups/group-form-modal";
 import { Select } from "@/components/ui/select";
 import { CAMPUSES } from "@/lib/constants/campuses";
 import type { RolUsuario, SessionUser } from "@/lib/types/auth";
@@ -195,7 +195,7 @@ export function Sidebar({
         </nav>
       </aside>
 
-      <CreateGroupModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <GroupFormModal open={createOpen} onClose={() => setCreateOpen(false)} />
     </>
   );
 }

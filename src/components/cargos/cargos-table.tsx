@@ -14,9 +14,13 @@ interface CargosTableProps {
   data: CargoDto[];
   columns: ColumnDef<CargoDto>[];
   columnVisibility: VisibilityState;
+  /** Clases extra para la fila de ese cargo (ej. resaltar en amarillo/rojo por vencimiento),
+   *  igual que en StudentsTable. Se aplican después del zebra-striping, así que un `bg-*` aquí
+   *  lo gana (twMerge). */
+  rowClassName?: (cargo: CargoDto) => string | undefined;
 }
 
-export function CargosTable({ data, columns, columnVisibility }: CargosTableProps) {
+export function CargosTable({ data, columns, columnVisibility, rowClassName }: CargosTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   // Orden por defecto: el cargo generado más recientemente arriba. idCargo es autoincremental,
   // así que refleja el orden real en que se fueron creando (a diferencia de la fecha de
@@ -78,7 +82,8 @@ export function CargosTable({ data, columns, columnVisibility }: CargosTableProp
                 key={row.id}
                 className={cn(
                   "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
-                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30"
+                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30",
+                  rowClassName?.(row.original)
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
