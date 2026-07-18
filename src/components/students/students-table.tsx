@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -21,9 +21,15 @@ interface StudentsTableProps {
 
 export function StudentsTable({ data, columns, columnVisibility, rowClassName }: StudentsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Orden por defecto: el alumno inscrito más recientemente arriba. El id es autoincremental en
+  // el backend, así que ordenar por él refleja el orden real en que se dieron de alta (a
+  // diferencia de fechaInscripcion, que el usuario puede capturar/editar y no distingue el orden
+  // entre alumnos inscritos el mismo día). Si el usuario hace clic en un encabezado de columna,
+  // `sorting` deja de estar vacío y ese orden manual gana sobre este.
+  const sortedData = useMemo(() => [...data].sort((a, b) => Number(b.id) - Number(a.id)), [data]);
 
   const table = useReactTable({
-    data,
+    data: sortedData,
     columns,
     // Per-column `enableSorting: true` only takes effect if this table-level flag isn't false
     // (TanStack ANDs both, it doesn't let a column override a table-wide "false"). Columns that

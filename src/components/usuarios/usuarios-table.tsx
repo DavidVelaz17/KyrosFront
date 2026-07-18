@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -18,9 +18,12 @@ interface UsuariosTableProps {
 
 export function UsuariosTable({ data, columns, columnVisibility }: UsuariosTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Orden por defecto: el usuario dado de alta más recientemente arriba. No hay fecha de alta
+  // en el backend, así que el id (autoincremental) es la mejor referencia del orden real de creación.
+  const sortedData = useMemo(() => [...data].sort((a, b) => Number(b.id) - Number(a.id)), [data]);
 
   const table = useReactTable({
-    data,
+    data: sortedData,
     columns,
     state: { columnVisibility, sorting },
     initialState: { pagination: { pageSize: PAGE_SIZE } },

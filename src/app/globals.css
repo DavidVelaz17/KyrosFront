@@ -5,6 +5,48 @@
   --foreground: #171717;
 }
 
+/* Paleta de marca (rojo vino / azul marino / amarillo). El acento de uso general del sistema
+ * (botones, foco, filtros seleccionados, pestañas) vivía sobre la escala "indigo" de Tailwind en
+ * ~30 archivos; en vez de tocar cada uno, se sobreescribe esa escala completa con el azul marino
+ * de marca, así que cualquier clase `bg-indigo-*`/`text-indigo-*`/`border-indigo-*` ya existente
+ * se repinta sola. "wine" (rojo vino) y "gold" (amarillo) son acentos nuevos de uso puntual —
+ * identidad de marca (logo, franja del ítem activo del menú), no el color de acción general. */
+@theme {
+  --color-indigo-50: #eff4fa;
+  --color-indigo-100: #dee8f5;
+  --color-indigo-200: #c2d3ec;
+  --color-indigo-300: #8fadda;
+  --color-indigo-400: #5484c4;
+  --color-indigo-500: #2f63ac;
+  --color-indigo-600: #234e8c;
+  --color-indigo-700: #1c3f73;
+  --color-indigo-800: #15315c;
+  --color-indigo-900: #0f2444;
+  --color-indigo-950: #0a1830;
+
+  --color-wine-50: #f8ecee;
+  --color-wine-100: #f3dfe3;
+  --color-wine-200: #e7c0c8;
+  --color-wine-300: #d592a1;
+  --color-wine-400: #b95d72;
+  --color-wine-500: #93293f;
+  --color-wine-600: #7a2238;
+  --color-wine-700: #5c1a2b;
+  --color-wine-800: #4c1523;
+  --color-wine-900: #3a1019;
+
+  --color-gold-50: #fdf8e9;
+  --color-gold-100: #fbf0d4;
+  --color-gold-200: #f5e0a8;
+  --color-gold-300: #f0cf6e;
+  --color-gold-400: #f0bf3f;
+  --color-gold-500: #e8ac1f;
+  --color-gold-600: #b3830f;
+  --color-gold-700: #8a660c;
+  --color-gold-800: #664c09;
+  --color-gold-900: #4a3707;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

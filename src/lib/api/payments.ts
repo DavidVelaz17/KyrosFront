@@ -37,6 +37,7 @@ function toPayment(dto: PagoDto): Payment {
     id: String(dto.idPago),
     studentId: String(dto.cargo.estudiante.idEstudiante),
     studentNombre: `${dto.cargo.estudiante.nombre} ${dto.cargo.estudiante.apellidoPaterno} ${dto.cargo.estudiante.apellidoMaterno}`,
+    matricula: dto.cargo.estudiante.matricula,
     grupoId: dto.cargo.estudiante.grupo ? String(dto.cargo.estudiante.grupo.idGrupo) : "",
     grupoNombre: dto.cargo.estudiante.grupo?.nombreGrupo ?? "Sin grupo",
     concepto: (dto.cargo.conceptoCargo ?? "Otro") as PaymentConcept,
@@ -47,10 +48,16 @@ function toPayment(dto: PagoDto): Payment {
     notas: "",
     idCargo: String(dto.cargo.idCargo),
     estatusCargo: dto.cargo.estatusCargo as EstatusCargo,
+    fechaVencimientoCargo: dto.cargo.fechaVencimientoCargo,
     usuarioNombre: dto.usuario?.nombreUsuario ?? "—",
     requiereFactura: dto.requiereFactura,
     ingresoA: INGRESO_A_FROM_BACKEND[dto.cargo.estudiante.ingresoA] ?? "Universidad",
   };
+}
+
+export async function getPaymentById(id: string): Promise<Payment> {
+  const dto = await apiFetch<PagoDto>(`/api/pagos/${id}`);
+  return toPayment(dto);
 }
 
 export async function listPayments(): Promise<Payment[]> {

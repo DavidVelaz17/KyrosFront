@@ -28,7 +28,7 @@ export function LoginForm() {
         <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white">
           <GraduationCap className="h-6 w-6" />
         </div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Kyros</h1>
+        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Kayros</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Inicia sesión para continuar</p>
       </div>
 

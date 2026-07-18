@@ -23,10 +23,14 @@ interface PaymentHistoryModalProps {
 export function PaymentHistoryModal({ open, onClose, student, payments, loading }: PaymentHistoryModalProps) {
   const [pageIndex, setPageIndex] = useState(0);
 
-  const pageCount = Math.max(Math.ceil(payments.length / PAGE_SIZE), 1);
+  // El pago registrado más recientemente arriba: el id es autoincremental y refleja el orden
+  // real en que se registraron, a diferencia de la fecha de pago (que puede repetirse el mismo
+  // día entre varios pagos).
+  const sortedPayments = useMemo(() => [...payments].sort((a, b) => Number(b.id) - Number(a.id)), [payments]);
+  const pageCount = Math.max(Math.ceil(sortedPayments.length / PAGE_SIZE), 1);
   const pageItems = useMemo(
-    () => payments.slice(pageIndex * PAGE_SIZE, pageIndex * PAGE_SIZE + PAGE_SIZE),
-    [payments, pageIndex]
+    () => sortedPayments.slice(pageIndex * PAGE_SIZE, pageIndex * PAGE_SIZE + PAGE_SIZE),
+    [sortedPayments, pageIndex]
   );
   const total = useMemo(() => payments.reduce((sum, payment) => sum + payment.monto, 0), [payments]);
 

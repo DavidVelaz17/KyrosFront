@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -17,9 +17,12 @@ interface TeachersTableProps {
 
 export function TeachersTable({ data, columns }: TeachersTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  // Orden por defecto: el profesor dado de alta más recientemente arriba. No hay fecha de alta
+  // en el backend, así que el id (autoincremental) es la mejor referencia del orden real de creación.
+  const sortedData = useMemo(() => [...data].sort((a, b) => Number(b.id) - Number(a.id)), [data]);
 
   const table = useReactTable({
-    data,
+    data: sortedData,
     columns,
     state: { sorting },
     initialState: { pagination: { pageSize: PAGE_SIZE } },

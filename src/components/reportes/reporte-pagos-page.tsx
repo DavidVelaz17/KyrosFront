@@ -52,7 +52,7 @@ export function ReportePagosPage() {
         if (hasta && payment.fecha > hasta) return false;
         return true;
       })
-      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+      .sort((a, b) => b.fecha.localeCompare(a.fecha));
   }, [payments, universidadMap, studentId, ingresoA, universidad, dia, mes, desde, hasta]);
 
   const total = filtered.reduce((sum, payment) => sum + payment.monto, 0);

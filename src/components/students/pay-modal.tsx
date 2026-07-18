@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Printer } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
 import { ESTATUS_CARGO_DESCRIPTIONS, PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS, TIPO_MENSUALIDAD_FROM_BACKEND } from "@/lib/types/payment";
@@ -145,7 +146,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
     }
   }
 
-  async function onSubmit(values: PayFormValues) {
+  async function onSubmit(values: PayFormValues, options: { print?: boolean } = {}) {
     if (showCargo) {
       const validationErrors = validateNewCargoSection(cargoValues);
       if (validationErrors) {
@@ -184,6 +185,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
         await createCargoFromSection(student!.id, cargoValues);
       }
 
+      if (options.print) window.open(`/reportes/recibo?paymentId=${payment.id}`, "_blank");
       onPaid(payment);
       onClose();
       return;
@@ -223,6 +225,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
       await createCargoFromSection(student!.id, cargoValues);
     }
 
+    if (options.print) window.open(`/reportes/recibo?paymentId=${payment.id}`, "_blank");
     onPaid(payment);
     onClose();
   }
@@ -239,13 +242,22 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isSubmitting}
+            onClick={handleSubmit((values) => onSubmit(values, { print: true }))}
+          >
+            <Printer className="h-4 w-4" />
+            {isSubmitting ? "Guardando..." : "Registrar pago e imprimir recibo"}
+          </Button>
           <Button type="submit" form="pay-form" disabled={isSubmitting}>
             {isSubmitting ? "Guardando..." : "Registrar pago"}
           </Button>
         </div>
       }
     >
-      <form id="pay-form" className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
+      <form id="pay-form" className="flex flex-col gap-4" onSubmit={handleSubmit((values) => onSubmit(values))}>
         <div>
           <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">¿A qué cargo aplica este pago?</p>
           <div className="grid grid-cols-2 gap-2">
@@ -435,6 +447,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
           values={cargoValues}
           onChange={setCargoValues}
           errors={cargoErrors}
+          title="Cargo adicional"
         />
       </form>
     </Modal>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Receipt } from "lucide-react";
 import { listAllCargos, type CargoDto } from "@/lib/api/cargos";
 import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
+import { cargoFilterStatus } from "@/lib/utils/cargo";
 import { useGroups } from "@/components/groups/groups-provider";
 import { CargosFilterBar } from "@/components/cargos/cargos-filter-bar";
 import { CargosTable } from "@/components/cargos/cargos-table";
@@ -20,6 +21,7 @@ export function CargosPage() {
   const [search, setSearch] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [ingresoA, setIngresoA] = useState("");
+  const [estado, setEstado] = useState("");
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:cargos",
     CARGO_COLUMN_DEFAULT_VISIBILITY
@@ -42,9 +44,10 @@ export function CargosPage() {
         cargo.estudiante.matricula.toLowerCase().includes(term);
       const matchesGrupo = !grupoId || String(cargo.estudiante.grupo?.idGrupo ?? "") === grupoId;
       const matchesIngresoA = !ingresoA || (INGRESO_A_FROM_BACKEND[cargo.estudiante.ingresoA] ?? cargo.estudiante.ingresoA) === ingresoA;
-      return matchesSearch && matchesGrupo && matchesIngresoA;
+      const matchesEstado = !estado || cargoFilterStatus(cargo.estatusCargo, cargo.fechaVencimientoCargo) === estado;
+      return matchesSearch && matchesGrupo && matchesIngresoA && matchesEstado;
     });
-  }, [cargos, search, grupoId, ingresoA]);
+  }, [cargos, search, grupoId, ingresoA, estado]);
 
   const columns = useMemo(() => buildCargoColumns(), []);
 
@@ -73,6 +76,8 @@ export function CargosPage() {
         groups={groups}
         ingresoA={ingresoA}
         onIngresoAChange={setIngresoA}
+        estado={estado}
+        onEstadoChange={setEstado}
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={setColumnVisibility}
       />

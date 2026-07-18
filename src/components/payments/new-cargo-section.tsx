@@ -10,7 +10,7 @@ import {
   type EstatusCargo,
   type PaymentPlanType,
 } from "@/lib/types/payment";
-import { createCargoStandalone } from "@/lib/api/cargos";
+import { createCargoStandalone, type CargoDto } from "@/lib/api/cargos";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -56,10 +56,11 @@ export function validateNewCargoSection(values: NewCargoSectionValues): NewCargo
 }
 
 /** Crea el cargo adicional para el alumno. Llamar solo después de que `validateNewCargoSection`
- *  no haya devuelto errores y de que la acción principal del modal haya tenido éxito. */
-export async function createCargoFromSection(idEstudiante: string, values: NewCargoSectionValues): Promise<void> {
+ *  no haya devuelto errores y de que la acción principal del modal haya tenido éxito. Devuelve el
+ *  cargo creado por si el llamador necesita vincularle un pago (ver createPagoForCargo). */
+export async function createCargoFromSection(idEstudiante: string, values: NewCargoSectionValues): Promise<CargoDto> {
   const result = NewCargoSectionSchema.parse(values);
-  await createCargoStandalone({
+  return createCargoStandalone({
     idEstudiante,
     tipoMensualidadCargo: TIPO_MENSUALIDAD_TO_BACKEND[result.tipoMensualidadCargo],
     conceptoCargo: result.conceptoCargo ?? "",
@@ -75,20 +76,30 @@ interface NewCargoSectionProps {
   values: NewCargoSectionValues;
   onChange: (values: NewCargoSectionValues) => void;
   errors?: NewCargoSectionErrors;
-  /** Si se indica, el estatus no es elegible por el usuario: se fija a este valor y el
-   *  selector se reemplaza por un campo de solo lectura (ej. "Parcial" al inscribir un alumno). */
-  lockedEstatus?: EstatusCargo;
+  /** Permite reutilizar el mismo componente para más de un cargo en la misma pantalla (ej. el
+   *  cargo que se está pagando y, aparte, el de la siguiente mensualidad) con rótulos distintos. */
+  title?: string;
+  description?: string;
 }
 
-/** Sección opcional y colapsable para generar, en el mismo paso que un pago (o el alta de un
- *  alumno), un cargo adicional para ese alumno — ej. dejar programado el cargo del próximo mes. */
-export function NewCargoSection({ show, onToggle, values, onChange, errors, lockedEstatus }: NewCargoSectionProps) {
+/** Sección opcional y colapsable para generar un cargo adicional para el alumno — independiente
+ *  de si se registra un pago en el mismo paso: puede generarse un cargo sin pago (ej. el alumno
+ *  no puede pagar en ese momento pero el cargo debe quedar generado, arrancando en Pendiente). */
+export function NewCargoSection({
+  show,
+  onToggle,
+  values,
+  onChange,
+  errors,
+  title = "Nuevo cargo",
+  description = "Genera un cargo para este alumno (opcional); no requiere registrar un pago al mismo tiempo.",
+}: NewCargoSectionProps) {
   return (
     <div className="flex flex-col gap-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nuevo cargo</h3>
-          <p className="text-xs text-zinc-500">Genera un cargo adicional para este alumno al momento de pagar (opcional).</p>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
+          <p className="text-xs text-zinc-500">{description}</p>
         </div>
         <Button type="button" variant="secondary" size="sm" onClick={onToggle}>
           <Receipt className="h-4 w-4" />
@@ -137,27 +148,20 @@ export function NewCargoSection({ show, onToggle, values, onChange, errors, lock
               onChange={(event) => onChange({ ...values, fechaVencimientoCargo: event.target.value })}
             />
           </Field>
-          {lockedEstatus ? (
-            <Field label="Estatus" htmlFor="cargo-estatus" className="sm:col-span-2">
-              <Input id="cargo-estatus" value={lockedEstatus} disabled />
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{ESTATUS_CARGO_DESCRIPTIONS[lockedEstatus]}</p>
-            </Field>
-          ) : (
-            <Field label="Estatus" htmlFor="cargo-estatus" error={errors?.estatusCargo} required className="sm:col-span-2">
-              <Select
-                id="cargo-estatus"
-                value={values.estatusCargo}
-                onChange={(event) => onChange({ ...values, estatusCargo: event.target.value as EstatusCargo })}
-              >
-                {ESTATUS_CARGO_OPTIONS.map((option) => (
-                  <option key={option} value={option} title={ESTATUS_CARGO_DESCRIPTIONS[option]}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{ESTATUS_CARGO_DESCRIPTIONS[values.estatusCargo]}</p>
-            </Field>
-          )}
+          <Field label="Estatus" htmlFor="cargo-estatus" error={errors?.estatusCargo} required className="sm:col-span-2">
+            <Select
+              id="cargo-estatus"
+              value={values.estatusCargo}
+              onChange={(event) => onChange({ ...values, estatusCargo: event.target.value as EstatusCargo })}
+            >
+              {ESTATUS_CARGO_OPTIONS.map((option) => (
+                <option key={option} value={option} title={ESTATUS_CARGO_DESCRIPTIONS[option]}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{ESTATUS_CARGO_DESCRIPTIONS[values.estatusCargo]}</p>
+          </Field>
         </div>
       )}
     </div>

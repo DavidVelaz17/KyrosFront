@@ -3,7 +3,6 @@
 import type { Usuario } from "@/lib/types/usuario";
 import type { RolUsuario } from "@/lib/types/auth";
 import { Modal } from "@/components/ui/modal";
-import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 const ROL_TONE: Record<RolUsuario, "indigo" | "green" | "amber" | "neutral"> = {
@@ -36,14 +35,11 @@ export function UsuarioDetailsModal({
   return (
     <Modal open={open} onClose={onClose} title="Información del usuario" size="md">
       <div className="flex flex-col gap-6">
-        <div className="flex items-center gap-4">
-          <Avatar label={usuario.nombreUsuario.slice(0, 2).toUpperCase()} size={56} />
-          <div>
-            <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{usuario.nombreUsuario}</p>
-            <p className="font-mono text-sm text-zinc-500">{usuario.usuario}</p>
-            <div className="mt-1">
-              <Badge tone={ROL_TONE[usuario.rol]}>{usuario.rol}</Badge>
-            </div>
+        <div>
+          <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{usuario.nombreUsuario}</p>
+          <p className="font-mono text-sm text-zinc-500">{usuario.usuario}</p>
+          <div className="mt-1">
+            <Badge tone={ROL_TONE[usuario.rol]}>{usuario.rol}</Badge>
           </div>
         </div>
 

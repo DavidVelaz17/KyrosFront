@@ -6,6 +6,7 @@ import { Select } from "@/components/ui/select";
 import { CargosColumnVisibilityMenu } from "@/components/cargos/cargos-column-visibility-menu";
 import type { Group } from "@/lib/types/group";
 import { INGRESO_A_OPTIONS } from "@/lib/types/student";
+import { CARGO_FILTER_STATUS_LABELS, CARGO_FILTER_STATUS_OPTIONS } from "@/lib/utils/cargo";
 
 interface CargosFilterBarProps {
   search: string;
@@ -15,6 +16,8 @@ interface CargosFilterBarProps {
   groups: Group[];
   ingresoA: string;
   onIngresoAChange: (value: string) => void;
+  estado: string;
+  onEstadoChange: (value: string) => void;
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (visibility: Record<string, boolean>) => void;
 }
@@ -27,6 +30,8 @@ export function CargosFilterBar({
   groups,
   ingresoA,
   onIngresoAChange,
+  estado,
+  onEstadoChange,
   columnVisibility,
   onColumnVisibilityChange,
 }: CargosFilterBarProps) {
@@ -58,6 +63,16 @@ export function CargosFilterBar({
             {INGRESO_A_OPTIONS.map((option) => (
               <option key={option} value={option}>
                 {option}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="sm:w-52">
+          <Select value={estado} onChange={(event) => onEstadoChange(event.target.value)}>
+            <option value="">Todos los estatus</option>
+            {CARGO_FILTER_STATUS_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {CARGO_FILTER_STATUS_LABELS[option]}
               </option>
             ))}
           </Select>

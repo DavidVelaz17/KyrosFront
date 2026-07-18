@@ -8,7 +8,8 @@ const LEVEL_PREFIX: Record<IngresoA, string> = {
   "Curso de verano": "V",
 };
 
-/** Builds a matricula like "U2026001" from ingresoA + year + sequence. Editable by the user afterwards. */
+/** Builds a matricula like "U2026001" from ingresoA + year + sequence. El campo de matrícula en
+ *  el formulario de alumno es de solo lectura, así que esta es la única manera en que se asigna. */
 export function suggestMatricula(ingresoA: IngresoA, year: number, sequence: number): string {
   const prefix = LEVEL_PREFIX[ingresoA];
   return `${prefix}${year}${String(sequence).padStart(3, "0")}`;

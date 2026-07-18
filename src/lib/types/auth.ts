@@ -20,7 +20,14 @@ export function isAdmin(rol: RolUsuario): boolean {
   return rol === "ADMIN";
 }
 
-/** La sección de Cargos (todos los adeudos del sistema) es para ADMIN y COORDINADOR. */
+/** La sección de Catálogos es para ADMIN y COORDINADOR — a diferencia del resto de secciones de
+ *  coordinador, SECRETARIO no tiene acceso a esta. */
 export function isAdminOrCoordinador(rol: RolUsuario): boolean {
   return rol === "ADMIN" || rol === "COORDINADOR";
+}
+
+/** La sección de Cargos (todos los adeudos del sistema): SECRETARIO tiene acceso a todo lo que
+ *  ve un COORDINADOR salvo Catálogos (ver isAdminOrCoordinador), así que entra aquí también. */
+export function canViewCargos(rol: RolUsuario): boolean {
+  return rol === "ADMIN" || rol === "COORDINADOR" || rol === "SECRETARIO";
 }

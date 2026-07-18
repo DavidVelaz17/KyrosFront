@@ -101,24 +101,6 @@ export function buildStudentColumns({
       ),
     },
     {
-      id: "nombre",
-      header: "NOMBRE",
-      accessorKey: "nombre",
-      enableSorting: false,
-    },
-    {
-      id: "apellidoPaterno",
-      header: "APELLIDO PATERNO",
-      accessorKey: "apellidoPaterno",
-      enableSorting: false,
-    },
-    {
-      id: "apellidoMaterno",
-      header: "APELLIDO MATERNO",
-      accessorKey: "apellidoMaterno",
-      enableSorting: false,
-    },
-    {
       id: "edad",
       header: "EDAD",
       accessorKey: "edad",

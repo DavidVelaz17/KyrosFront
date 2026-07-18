@@ -9,6 +9,17 @@ export function formatDate(iso: string): string {
   }).format(date);
 }
 
+/** Fecha en formato DD/MM/AAAA, para documentos formales (ej. recibos). */
+export function formatDateNumeric(iso: string): string {
+  if (!iso) return "—";
+  const date = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "—";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 export function formatDateTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -17,10 +17,14 @@ interface PagosTableProps {
 }
 
 export function PagosTable({ data, columns, columnVisibility }: PagosTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "fecha", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // Orden por defecto: el pago registrado más recientemente arriba. El id es autoincremental,
+  // así que refleja el orden real en que se fueron registrando (a diferencia de la fecha de
+  // pago, que puede repetirse el mismo día entre varios pagos o capturarse con otra fecha).
+  const sortedData = useMemo(() => [...data].sort((a, b) => Number(b.id) - Number(a.id)), [data]);
 
   const table = useReactTable({
-    data,
+    data: sortedData,
     columns,
     state: { columnVisibility, sorting },
     initialState: { pagination: { pageSize: PAGE_SIZE } },

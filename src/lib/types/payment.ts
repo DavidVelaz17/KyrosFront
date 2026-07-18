@@ -32,6 +32,8 @@ export interface Payment {
   studentId: string;
   /** Solo para mostrar/filtrar en tablas (ej. Pagos): evita tener que cruzar con listAllStudents(). */
   studentNombre: string;
+  /** Matrícula del alumno, para mostrar en el recibo sin tener que cruzar con listAllStudents(). */
+  matricula: string;
   grupoId: string;
   grupoNombre: string;
   concepto: PaymentConcept;
@@ -42,6 +44,9 @@ export interface Payment {
   notas: string;
   idCargo: string;
   estatusCargo: EstatusCargo;
+  /** Del cargo al que pertenece este pago; usada para calcular si ese cargo ya venció (ver
+   *  displayEstatusCargo en lib/utils/cargo.ts) en vez de confiar en estatusCargo guardado. */
+  fechaVencimientoCargo: string;
   /** Quién registró este pago. "—" en pagos creados antes de que se agregara este dato. */
   usuarioNombre: string;
   /** Si el alumno/tutor pidió factura por este pago. Se captura al registrar el pago. */
@@ -50,11 +55,22 @@ export interface Payment {
   ingresoA: IngresoA;
 }
 
-// Los campos derivados (studentNombre, grupoNombre, idCargo, estatusCargo, usuarioNombre,
-// ingresoA) solo se leen del backend al mostrar pagos; no se piden al crear uno.
+// Los campos derivados (studentNombre, matricula, grupoNombre, idCargo, estatusCargo,
+// fechaVencimientoCargo, usuarioNombre, ingresoA) solo se leen del backend al mostrar pagos; no
+// se piden al crear uno.
 export type CreatePaymentInput = Omit<
   Payment,
-  "id" | "fecha" | "studentNombre" | "grupoId" | "grupoNombre" | "idCargo" | "estatusCargo" | "usuarioNombre" | "ingresoA"
+  | "id"
+  | "fecha"
+  | "studentNombre"
+  | "matricula"
+  | "grupoId"
+  | "grupoNombre"
+  | "idCargo"
+  | "estatusCargo"
+  | "fechaVencimientoCargo"
+  | "usuarioNombre"
+  | "ingresoA"
 > & {
   fecha?: string;
 };

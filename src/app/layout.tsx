@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kyros",
-  description: "Panel administrativo Kyros: grupos, alumnos, pagos y más.",
+  title: "Kayros",
+  description: "Panel administrativo Kayros: grupos, alumnos, pagos y más.",
 };
 
 export default function RootLayout({

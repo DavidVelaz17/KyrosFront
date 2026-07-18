@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Printer } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -43,8 +43,9 @@ import {
   UniversidadDestinoField,
   type UniversidadSlot,
 } from "@/components/students/universidad-destino-field";
-import { PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS } from "@/lib/types/payment";
-import { createPayment } from "@/lib/api/payments";
+import { PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS, type PaymentPlanType } from "@/lib/types/payment";
+import { createPagoForCargo } from "@/lib/api/payments";
+import { updateCargoEstatus } from "@/lib/api/cargos";
 import { suggestMatricula, nextSequenceForPrefix, levelPrefix } from "@/lib/utils/matricula";
 import { sanitizeAmountInput, todayISODate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
@@ -56,10 +57,6 @@ import {
   type NewCargoSectionErrors,
   type NewCargoSectionValues,
 } from "@/components/payments/new-cargo-section";
-
-/** Un cargo generado al inscribir un alumno arranca en Parcial (no elegible): representa el
- *  saldo restante después del pago inicial, no un cobro nuevo ni ya liquidado. */
-const ENROLLMENT_CARGO_DEFAULTS: NewCargoSectionValues = { ...EMPTY_NEW_CARGO_SECTION, estatusCargo: "PARCIAL" };
 
 /** Qué catálogo consultar y cómo etiquetar el selector de destino, según el botón de "Ingresa a" elegido.
  *  "Asesorías" y "Universidad" no entran aquí: Asesorías es muchos a muchos (día + hora + materia,
@@ -77,6 +74,15 @@ const DESTINO_LABELS: Record<IngresoA, string> = {
   Secundaria: "Secundaria",
   Asesorías: "Asesoría",
   "Curso de verano": "Curso de verano",
+};
+
+const TIPO_PAGO_CARGO_OPTIONS = ["Completo", "Parcial", "Pendiente"] as const;
+type TipoPagoCargo = (typeof TIPO_PAGO_CARGO_OPTIONS)[number];
+
+const TIPO_PAGO_CARGO_LABELS: Record<TipoPagoCargo, string> = {
+  Completo: "Pago completo",
+  Parcial: "Pago parcial",
+  Pendiente: "No pagar aún",
 };
 
 const CreateStudentSchema = z
@@ -102,10 +108,9 @@ const CreateStudentSchema = z
     grupoId: z.string().optional(),
     horario: z.enum(HORARIO_OPTIONS),
     // Campos de pago: opcionales aquí para no bloquear "Guardar alumno"; se exigen
-    // aparte (ver PaymentSectionSchema) solo cuando se usa el botón "Pagar".
-    concepto: z.string().optional(),
-    tipoMensualidadPago: z.enum(PAYMENT_PLAN_TYPE_OPTIONS).optional(),
-    montoPago: z.string().optional(),
+    // aparte (ver PaymentSectionSchema) solo cuando se usa el botón "Pagar". El resto de los
+    // datos del pago (concepto, tipo de mensualidad, monto) se toman directamente de la
+    // sección "Pago inscripción" (ver pagoInscripcionValues), no de campos del formulario.
     metodoPago: z.enum(PAYMENT_METHOD_OPTIONS).optional(),
     fechaPago: z.string().optional(),
     requiereFactura: z.boolean().optional(),
@@ -117,9 +122,6 @@ const CreateStudentSchema = z
   });
 
 const PaymentSectionSchema = z.object({
-  concepto: z.string().min(1, "El concepto es requerido"),
-  tipoMensualidadPago: z.enum(PAYMENT_PLAN_TYPE_OPTIONS),
-  montoPago: z.coerce.number({ error: "El monto es requerido" }).positive("El monto debe ser mayor a 0"),
   metodoPago: z.enum(PAYMENT_METHOD_OPTIONS),
   fechaPago: z.string().min(1, "La fecha de pago es requerida"),
   requiereFactura: z.boolean(),
@@ -147,10 +149,6 @@ function buildDefaultValues(grupoId: string): CreateStudentFormInput {
     fechaInscripcion: todayISODate(),
     grupoId,
     horario: "Escolarizado",
-    concepto: "Colegiatura",
-    tipoMensualidadPago: "Mensualidad",
-    // Monto sugerido por default al abrir la sección de pago; el usuario lo puede cambiar.
-    montoPago: "500",
     metodoPago: "Efectivo",
     fechaPago: todayISODate(),
     requiereFactura: false,
@@ -179,9 +177,6 @@ function buildEditValues(student: Student, grupoId: string): CreateStudentFormIn
     fechaInscripcion: student.fechaInscripcion,
     grupoId,
     horario: student.horario,
-    concepto: "Colegiatura",
-    tipoMensualidadPago: "Mensualidad",
-    montoPago: "500",
     metodoPago: "Efectivo",
     fechaPago: todayISODate(),
     requiereFactura: false,
@@ -203,11 +198,26 @@ interface StudentFormModalProps {
 export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCreated, editStudent = null }: StudentFormModalProps) {
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
-  const [showPayment, setShowPayment] = useState(false);
+  const [isDraggingFoto, setIsDraggingFoto] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
-  const [showNewCargo, setShowNewCargo] = useState(false);
-  const [newCargoValues, setNewCargoValues] = useState<NewCargoSectionValues>(ENROLLMENT_CARGO_DEFAULTS);
-  const [newCargoErrors, setNewCargoErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
+  // "Pago inscripción" une el cargo principal del alumno y su pago en una sola sección: llenar
+  // los datos del cargo (tipo de mensualidad, concepto, monto, vencimiento) es lo único que se
+  // captura; el pago reutiliza esos mismos datos en vez de pedirlos de nuevo (ver tipoPagoCargo).
+  const [showPagoInscripcion, setShowPagoInscripcion] = useState(false);
+  const [pagoInscripcionValues, setPagoInscripcionValues] = useState<NewCargoSectionValues>(EMPTY_NEW_CARGO_SECTION);
+  const [pagoInscripcionErrors, setPagoInscripcionErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
+  // "Completo" liquida el cargo por su monto total (pasa a Pagado); "Parcial" registra un abono
+  // menor al total (pasa a Parcial); "Pendiente" crea el cargo sin registrar ningún pago todavía.
+  const [tipoPagoCargo, setTipoPagoCargo] = useState<TipoPagoCargo>("Completo");
+  // Monto que se abona ahora cuando tipoPagoCargo es "Parcial" (independiente del monto total del
+  // cargo). No es un campo del formulario porque solo aplica a este caso puntual.
+  const [montoAbonado, setMontoAbonado] = useState("");
+  const [montoAbonadoError, setMontoAbonadoError] = useState<string | undefined>(undefined);
+  // Cargo aparte del principal (ej. la mensualidad del siguiente mes): se genera siempre
+  // independiente del pago, aunque el cargo principal sí se esté pagando en este mismo paso.
+  const [showExtraCargo, setShowExtraCargo] = useState(false);
+  const [extraCargoValues, setExtraCargoValues] = useState<NewCargoSectionValues>(EMPTY_NEW_CARGO_SECTION);
+  const [extraCargoErrors, setExtraCargoErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
@@ -225,7 +235,6 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
 
   const {
     register,
-    control,
     handleSubmit,
     reset,
     watch,
@@ -354,10 +363,15 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       reset(buildDefaultValues(defaultGroupId));
       setFotoPreview(null);
       setFotoFile(null);
-      setShowPayment(false);
-      setShowNewCargo(false);
-      setNewCargoValues(ENROLLMENT_CARGO_DEFAULTS);
-      setNewCargoErrors(undefined);
+      setShowPagoInscripcion(false);
+      setPagoInscripcionValues(EMPTY_NEW_CARGO_SECTION);
+      setPagoInscripcionErrors(undefined);
+      setTipoPagoCargo("Completo");
+      setMontoAbonado("");
+      setMontoAbonadoError(undefined);
+      setShowExtraCargo(false);
+      setExtraCargoValues(EMPTY_NEW_CARGO_SECTION);
+      setExtraCargoErrors(undefined);
       setDestinoOptions([]);
       setAsesoriaSlots([]);
       setAsesoriaError(undefined);
@@ -460,14 +474,25 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
     return true;
   }
 
-  function handleFotoChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  function processFotoFile(file: File) {
     setFotoFile(file);
     const reader = new FileReader();
     reader.onload = () => setFotoPreview(reader.result as string);
     reader.readAsDataURL(file);
+  }
+
+  function handleFotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    processFotoFile(file);
+  }
+
+  function handleFotoDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDraggingFoto(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    processFotoFile(file);
   }
 
   async function persistStudent(values: CreateStudentFormOutput): Promise<Student> {
@@ -532,14 +557,42 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   async function onSubmit(values: CreateStudentFormOutput) {
     if (!validateAsesoriaSlots(values.ingresoA as IngresoA)) return;
     if (!validateUniversidad(values.ingresoA as IngresoA)) return;
+    if (showPagoInscripcion) {
+      const validationErrors = validateNewCargoSection(pagoInscripcionValues);
+      if (validationErrors) {
+        setPagoInscripcionErrors(validationErrors);
+        return;
+      }
+    }
+    if (showExtraCargo) {
+      const validationErrors = validateNewCargoSection(extraCargoValues);
+      if (validationErrors) {
+        setExtraCargoErrors(validationErrors);
+        return;
+      }
+    }
     const student = await persistStudent(values);
+    // Un cargo puede generarse sin pago: el alumno se guarda igual aunque no se pague en este
+    // momento (ej. no puede pagar todavía), y el cargo queda pendiente de cobro. Este botón solo
+    // se usa cuando tipoPagoCargo es "Pendiente" (ver willPagarAhora); si se está pagando, el
+    // flujo pasa por handlePagar en vez de este submit.
+    if (showPagoInscripcion) {
+      await createCargoFromSection(student.id, pagoInscripcionValues);
+    }
+    // El cargo aparte (ej. mensualidad del siguiente mes) siempre se crea independiente, sin pago.
+    if (showExtraCargo) {
+      await createCargoFromSection(student.id, extraCargoValues);
+    }
     onCreated(student);
     onClose();
   }
 
-  /** "Pagar": valida los datos del alumno + los del pago, crea el alumno y, con su id ya
-   *  asignado, registra el cargo/pago que lo salda (createPayment ya hace ambas llamadas). */
-  async function handlePagar() {
+  /** "Pagar": valida los datos del alumno + los del pago, crea el alumno, crea el cargo de la
+   *  sección "Pago inscripción" y registra el pago sobre ese mismo cargo: "Completo" lo deja
+   *  Pagado por el monto total; "Parcial" (abono) lo deja Parcial por `montoAbonado`. El cargo
+   *  aparte (showExtraCargo, ej. la mensualidad del siguiente mes) se crea siempre independiente,
+   *  se haya pagado o no el cargo principal. */
+  async function handlePagar(options: { print?: boolean } = {}) {
     const values = getValues();
     const studentResult = CreateStudentSchema.safeParse(values);
     const paymentResult = PaymentSectionSchema.safeParse(values);
@@ -554,10 +607,32 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
     if (!studentResult.success || !paymentResult.success) return;
     if (!validateAsesoriaSlots(studentResult.data.ingresoA as IngresoA)) return;
     if (!validateUniversidad(studentResult.data.ingresoA as IngresoA)) return;
-    if (showNewCargo) {
-      const validationErrors = validateNewCargoSection(newCargoValues);
+
+    const cargoValidationErrors = validateNewCargoSection(pagoInscripcionValues);
+    if (cargoValidationErrors) {
+      setPagoInscripcionErrors(cargoValidationErrors);
+      return;
+    }
+
+    let montoAPagar = Number(pagoInscripcionValues.montoTotalCargo);
+    if (tipoPagoCargo === "Parcial") {
+      const monto = Number(montoAbonado);
+      if (!montoAbonado || Number.isNaN(monto) || monto <= 0) {
+        setMontoAbonadoError("El monto es requerido");
+        return;
+      }
+      if (monto >= Number(pagoInscripcionValues.montoTotalCargo)) {
+        setMontoAbonadoError("Este monto cubre el total del cargo; usa 'Pago completo'.");
+        return;
+      }
+      setMontoAbonadoError(undefined);
+      montoAPagar = monto;
+    }
+
+    if (showExtraCargo) {
+      const validationErrors = validateNewCargoSection(extraCargoValues);
       if (validationErrors) {
-        setNewCargoErrors(validationErrors);
+        setExtraCargoErrors(validationErrors);
         return;
       }
     }
@@ -565,25 +640,32 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
     setIsPaying(true);
     try {
       const student = await persistStudent(studentResult.data);
-      await createPayment({
-        studentId: student.id,
-        concepto: paymentResult.data.concepto,
-        tipoMensualidad: paymentResult.data.tipoMensualidadPago,
-        monto: paymentResult.data.montoPago,
+
+      const cargo = await createCargoFromSection(student.id, pagoInscripcionValues);
+      await updateCargoEstatus(cargo.idCargo, tipoPagoCargo === "Completo" ? "PAGADO" : "PARCIAL");
+      const payment = await createPagoForCargo({
+        idCargo: cargo.idCargo,
+        montoPagadoPago: montoAPagar,
+        fechaPago: paymentResult.data.fechaPago,
         metodoPago: paymentResult.data.metodoPago,
-        fecha: paymentResult.data.fechaPago,
-        notas: "",
         requiereFactura: paymentResult.data.requiereFactura,
       });
-      if (showNewCargo) {
-        await createCargoFromSection(student.id, newCargoValues);
+
+      if (showExtraCargo) {
+        await createCargoFromSection(student.id, extraCargoValues);
       }
+
+      if (options.print) window.open(`/reportes/recibo?paymentId=${payment.id}`, "_blank");
       onCreated(student);
       onClose();
     } finally {
       setIsPaying(false);
     }
   }
+
+  // El botón "Pagar" solo aplica cuando la sección "Pago inscripción" está abierta y no se eligió
+  // "Pendiente"; en cualquier otro caso el flujo normal es "Guardar alumno" (onSubmit).
+  const willPagarAhora = showPagoInscripcion && tipoPagoCargo !== "Pendiente";
 
   return (
     <Modal
@@ -603,12 +685,13 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          {showPayment ? (
+          {willPagarAhora ? (
             <>
-              <Button type="button" variant="secondary">
-                Pagar e imprimir reporte
+              <Button type="button" variant="secondary" onClick={() => handlePagar({ print: true })} disabled={isPaying}>
+                <Printer className="h-4 w-4" />
+                {isPaying ? "Procesando..." : "Pagar e imprimir recibo"}
               </Button>
-              <Button type="button" onClick={handlePagar} disabled={isPaying}>
+              <Button type="button" onClick={() => handlePagar()} disabled={isPaying}>
                 {isPaying ? "Procesando..." : "Pagar"}
               </Button>
             </>
@@ -641,7 +724,18 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
           </div>
         )}
 
-        <div className="flex items-center gap-4">
+        <div
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDraggingFoto(true);
+          }}
+          onDragLeave={() => setIsDraggingFoto(false)}
+          onDrop={handleFotoDrop}
+          className={cn(
+            "flex items-center gap-4 rounded-lg border-2 border-dashed border-transparent p-2 transition-colors",
+            isDraggingFoto && "border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-900/20"
+          )}
+        >
           <Avatar src={fotoPreview} label={watch("nombre")?.slice(0, 2)?.toUpperCase() || "AL"} size={56} />
           <Field label="Foto" htmlFor="foto">
             <input
@@ -651,12 +745,21 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
               onChange={handleFotoChange}
               className="text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 dark:text-zinc-300 dark:file:bg-indigo-900/30 dark:file:text-indigo-300"
             />
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+              {isDraggingFoto ? "Suelta la imagen aquí" : "O arrastra una imagen aquí"}
+            </p>
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Matrícula" htmlFor="matricula" error={errors.matricula?.message} required>
-            <Input id="matricula" {...register("matricula")} />
+            <Input
+              id="matricula"
+              readOnly
+              className="cursor-not-allowed bg-zinc-50 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+              {...register("matricula")}
+            />
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Se genera automáticamente; no se puede editar.</p>
           </Field>
           <Field label="Grupo" htmlFor="grupoId" error={errors.grupoId?.message}>
             <Select id="grupoId" {...register("grupoId")}>
@@ -784,79 +887,152 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
         </div>
 
         {!editStudent && (
-          <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pago</h3>
-              <Button type="button" variant="secondary" size="sm" onClick={() => setShowPayment((value) => !value)}>
-                <CreditCard className="h-4 w-4" />
-                {showPayment ? "Ocultar" : "Pagar"}
-              </Button>
+          <>
+            <div className="flex flex-col gap-4 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pago inscripción</h3>
+                  <p className="text-xs text-zinc-500">
+                    Genera el cargo de inscripción del alumno y, si aplica, registra su pago (opcional).
+                  </p>
+                </div>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setShowPagoInscripcion((value) => !value)}>
+                  <CreditCard className="h-4 w-4" />
+                  {showPagoInscripcion ? "Ocultar" : "Agregar"}
+                </Button>
+              </div>
+
+              {showPagoInscripcion && (
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <Field label="Tipo de mensualidad" htmlFor="cargo-tipoMensualidad" error={pagoInscripcionErrors?.tipoMensualidadCargo} required>
+                      <Select
+                        id="cargo-tipoMensualidad"
+                        value={pagoInscripcionValues.tipoMensualidadCargo}
+                        onChange={(event) =>
+                          setPagoInscripcionValues({ ...pagoInscripcionValues, tipoMensualidadCargo: event.target.value as PaymentPlanType })
+                        }
+                      >
+                        {PAYMENT_PLAN_TYPE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="Concepto" htmlFor="cargo-concepto" error={pagoInscripcionErrors?.conceptoCargo}>
+                      <Input
+                        id="cargo-concepto"
+                        placeholder="Ej. Inscripción"
+                        value={pagoInscripcionValues.conceptoCargo}
+                        onChange={(event) => setPagoInscripcionValues({ ...pagoInscripcionValues, conceptoCargo: event.target.value })}
+                      />
+                    </Field>
+                    <Field label="Monto total (MXN)" htmlFor="cargo-monto" error={pagoInscripcionErrors?.montoTotalCargo} required>
+                      <Input
+                        id="cargo-monto"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={pagoInscripcionValues.montoTotalCargo}
+                        onChange={(event) =>
+                          setPagoInscripcionValues({ ...pagoInscripcionValues, montoTotalCargo: sanitizeAmountInput(event.target.value) })
+                        }
+                      />
+                    </Field>
+                    <Field label="Fecha de vencimiento" htmlFor="cargo-fecha" error={pagoInscripcionErrors?.fechaVencimientoCargo} required>
+                      <Input
+                        id="cargo-fecha"
+                        type="date"
+                        value={pagoInscripcionValues.fechaVencimientoCargo}
+                        onChange={(event) => setPagoInscripcionValues({ ...pagoInscripcionValues, fechaVencimientoCargo: event.target.value })}
+                      />
+                    </Field>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">¿Se paga en este momento?</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {TIPO_PAGO_CARGO_OPTIONS.map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => {
+                            setTipoPagoCargo(option);
+                            if (option !== "Parcial") {
+                              setMontoAbonado("");
+                              setMontoAbonadoError(undefined);
+                            }
+                          }}
+                          className={cn(
+                            "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
+                            tipoPagoCargo === option
+                              ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-300"
+                              : "border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          )}
+                        >
+                          {TIPO_PAGO_CARGO_LABELS[option]}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      {tipoPagoCargo === "Completo"
+                        ? "El cargo quedará como Pagado por el monto total capturado arriba."
+                        : tipoPagoCargo === "Parcial"
+                          ? "El cargo quedará como Parcial; indica abajo el monto de este abono."
+                          : "El cargo se crea como Pendiente; podrás registrar su pago después."}
+                    </p>
+                  </div>
+
+                  {tipoPagoCargo !== "Pendiente" && (
+                    <>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {tipoPagoCargo === "Parcial" && (
+                          <Field label="Monto abonado ahora (MXN)" htmlFor="montoAbonado" error={montoAbonadoError} required>
+                            <Input
+                              id="montoAbonado"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="0.00"
+                              value={montoAbonado}
+                              onChange={(event) => setMontoAbonado(sanitizeAmountInput(event.target.value))}
+                            />
+                          </Field>
+                        )}
+                        <Field label="Método de pago" htmlFor="metodoPago" error={errors.metodoPago?.message} required>
+                          <Select id="metodoPago" {...register("metodoPago")}>
+                            {PAYMENT_METHOD_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </Select>
+                        </Field>
+                        <Field label="Fecha de pago" htmlFor="fechaPago" error={errors.fechaPago?.message} required>
+                          <Input id="fechaPago" type="date" {...register("fechaPago")} />
+                        </Field>
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <Checkbox {...register("requiereFactura")} />
+                        Este pago requiere factura
+                      </label>
+                    </>
+                  )}
+                </>
+              )}
             </div>
 
-            {showPayment && (
-              <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Monto (MXN)" htmlFor="montoPago" error={errors.montoPago?.message} required>
-                    <Controller
-                      control={control}
-                      name="montoPago"
-                      render={({ field }) => (
-                        <Input
-                          id="montoPago"
-                          type="text"
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          name={field.name}
-                          value={(field.value as string | undefined) ?? ""}
-                          onChange={(event) => field.onChange(sanitizeAmountInput(event.target.value))}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                        />
-                      )}
-                    />
-                  </Field>
-                  <Field label="Tipo de mensualidad" htmlFor="tipoMensualidadPago" error={errors.tipoMensualidadPago?.message} required>
-                    <Select id="tipoMensualidadPago" {...register("tipoMensualidadPago")}>
-                      {PAYMENT_PLAN_TYPE_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Método de pago" htmlFor="metodoPago" error={errors.metodoPago?.message} required>
-                    <Select id="metodoPago" {...register("metodoPago")}>
-                      {PAYMENT_METHOD_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Field label="Concepto" htmlFor="concepto" error={errors.concepto?.message} required>
-                    <Input id="concepto" placeholder="Ej. Colegiatura agosto" {...register("concepto")} />
-                  </Field>
-                  <Field label="Fecha de pago" htmlFor="fechaPago" error={errors.fechaPago?.message} required>
-                    <Input id="fechaPago" type="date" {...register("fechaPago")} />
-                  </Field>
-                </div>
-
-                <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                  <Checkbox {...register("requiereFactura")} />
-                  Este pago requiere factura
-                </label>
-
-                <NewCargoSection
-                  show={showNewCargo}
-                  onToggle={() => setShowNewCargo((value) => !value)}
-                  values={newCargoValues}
-                  onChange={setNewCargoValues}
-                  errors={newCargoErrors}
-                  lockedEstatus="PARCIAL"
-                />
-              </>
-            )}
-          </div>
+            <NewCargoSection
+              show={showExtraCargo}
+              onToggle={() => setShowExtraCargo((value) => !value)}
+              values={extraCargoValues}
+              onChange={setExtraCargoValues}
+              errors={extraCargoErrors}
+              title="Cargo adicional"
+              description="Genera otro cargo aparte (ej. la mensualidad del siguiente mes), independiente del cargo y pago de arriba."
+            />
+          </>
         )}
       </form>
     </Modal>

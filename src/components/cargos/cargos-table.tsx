@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { flexRender, getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
@@ -17,10 +17,14 @@ interface CargosTableProps {
 }
 
 export function CargosTable({ data, columns, columnVisibility }: CargosTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: "fechaVencimiento", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  // Orden por defecto: el cargo generado más recientemente arriba. idCargo es autoincremental,
+  // así que refleja el orden real en que se fueron creando (a diferencia de la fecha de
+  // vencimiento, que es una fecha de negocio y no distingue orden de creación).
+  const sortedData = useMemo(() => [...data].sort((a, b) => b.idCargo - a.idCargo), [data]);
 
   const table = useReactTable({
-    data,
+    data: sortedData,
     columns,
     state: { columnVisibility, sorting },
     initialState: { pagination: { pageSize: PAGE_SIZE } },

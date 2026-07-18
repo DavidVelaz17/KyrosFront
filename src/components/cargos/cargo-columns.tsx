@@ -7,6 +7,7 @@ import type { EstatusCargo } from "@/lib/types/payment";
 import { ESTATUS_CARGO_DESCRIPTIONS, TIPO_MENSUALIDAD_FROM_BACKEND } from "@/lib/types/payment";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
+import { cargoBadgeTone, displayEstatusCargo } from "@/lib/utils/cargo";
 
 function alumnoNombre(cargo: CargoDto): string {
   return `${cargo.estudiante.nombre} ${cargo.estudiante.apellidoPaterno} ${cargo.estudiante.apellidoMaterno}`;
@@ -65,14 +66,14 @@ export function buildCargoColumns(): ColumnDef<CargoDto>[] {
     {
       id: "estatus",
       header: "ESTATUS",
-      accessorKey: "estatusCargo",
+      accessorFn: (row) => displayEstatusCargo(row.estatusCargo as EstatusCargo, row.fechaVencimientoCargo),
       enableSorting: true,
       sortingFn: localeTextSort,
-      cell: ({ getValue }) => {
-        const estatus = getValue<EstatusCargo>();
+      cell: ({ row }) => {
+        const estatus = displayEstatusCargo(row.original.estatusCargo as EstatusCargo, row.original.fechaVencimientoCargo);
         return (
           <Badge
-            tone={estatus === "PAGADO" ? "green" : estatus === "PARCIAL" ? "amber" : estatus === "VENCIDO" ? "amber" : "neutral"}
+            tone={cargoBadgeTone(row.original.estatusCargo as EstatusCargo, row.original.fechaVencimientoCargo)}
             title={ESTATUS_CARGO_DESCRIPTIONS[estatus]}
           >
             {estatus}

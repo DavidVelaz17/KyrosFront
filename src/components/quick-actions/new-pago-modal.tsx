@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Printer } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import type { Payment } from "@/lib/types/payment";
 import { ESTATUS_CARGO_DESCRIPTIONS, PAYMENT_METHOD_OPTIONS, TIPO_MENSUALIDAD_FROM_BACKEND, type EstatusCargo } from "@/lib/types/payment";
@@ -134,7 +135,7 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
     }
   }
 
-  async function onSubmit(values: NewPagoFormOutput) {
+  async function onSubmit(values: NewPagoFormOutput, options: { print?: boolean } = {}) {
     if (!selectedStudent) {
       setStudentError("Selecciona un alumno");
       return;
@@ -176,6 +177,7 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       await createCargoFromSection(selectedStudent.id, newCargoValues);
     }
 
+    if (options.print) window.open(`/reportes/recibo?paymentId=${payment.id}`, "_blank");
     onCreated(payment);
     onClose();
   }
@@ -192,13 +194,22 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={isSubmitting}
+            onClick={handleSubmit((values) => onSubmit(values, { print: true }))}
+          >
+            <Printer className="h-4 w-4" />
+            {isSubmitting ? "Guardando..." : "Guardar pago e imprimir recibo"}
+          </Button>
           <Button type="submit" form="new-pago-form" disabled={isSubmitting}>
             {isSubmitting ? "Guardando..." : "Guardar pago"}
           </Button>
         </div>
       }
     >
-      <form id="new-pago-form" className="flex flex-col gap-4" onSubmit={handleSubmit(onSubmit)}>
+      <form id="new-pago-form" className="flex flex-col gap-4" onSubmit={handleSubmit((values) => onSubmit(values))}>
         <StudentSearchField
           students={students}
           selected={selectedStudent}
@@ -337,6 +348,7 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
             values={newCargoValues}
             onChange={setNewCargoValues}
             errors={newCargoErrors}
+            title="Cargo adicional"
           />
         )}
       </form>
