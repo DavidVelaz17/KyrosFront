@@ -50,11 +50,18 @@ interface EstudianteDto {
   estatus: string;
 }
 
-/** El backend guarda solo el path (`/uploads/xxx.ext`); se resuelve aquí a una URL absoluta
- *  para que el cliente no necesite conocer el origen del backend. */
+/** El backend guarda solo el path (`/uploads/xxx.ext`). En dev local, frontend y backend viven en
+ *  orígenes distintos (ej. localhost:3000 vs 192.168.1.148:8080), así que hace falta construir la
+ *  URL absoluta contra PHOTOS_PUBLIC_BASE_URL para que el navegador la pueda cargar. Detrás de un
+ *  reverse proxy que sirve todo bajo un solo dominio (producción, ver Caddyfile en kyros-deploy:
+ *  /uploads/* se enruta al backend), NO hay que setear esa variable: la ruta relativa que manda
+ *  el backend ya resuelve sola contra el dominio público — construir la absoluta ahí terminaría
+ *  usando BACKEND_API_URL, que en Docker apunta al hostname interno "backend" (solo resoluble
+ *  dentro de la red de contenedores, no desde el navegador del usuario). */
 function resolveFotoUrl(foto: string | null): string | null {
   if (!foto) return null;
-  return new URL(foto, process.env.BACKEND_API_URL).toString();
+  const publicBase = process.env.PHOTOS_PUBLIC_BASE_URL;
+  return publicBase ? new URL(foto, publicBase).toString() : foto;
 }
 
 function toStudent(dto: EstudianteDto): Student {

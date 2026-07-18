@@ -12,6 +12,7 @@ import {
   Library,
   Plus,
   Receipt,
+  ScrollText,
   Shield,
   Users,
   Zap,
@@ -34,6 +35,7 @@ const NAV_LINKS: { href: string; label: string; icon: typeof IdCard; visible?: (
   { href: "/dashboard/cargos", label: "Cargos", icon: Receipt, visible: canViewCargos },
   { href: "/dashboard/catalogos", label: "Catálogos", icon: Library, visible: isAdminOrCoordinador },
   { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, visible: isAdmin },
+  { href: "/dashboard/logs", label: "Logs", icon: ScrollText, visible: isAdmin },
 ];
 
 export function Sidebar({

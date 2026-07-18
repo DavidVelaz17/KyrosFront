@@ -15,7 +15,13 @@ export async function createSession(user: SessionUser): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, value, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    // Una cookie "Secure" solo se guarda si la conexión es HTTPS real — el navegador la descarta
+    // en silencio si no. NODE_ENV=production no basta (ver Dockerfile de kyros-front): en Docker,
+    // el build siempre corre en modo producción, pero al probar en local con Caddy en HTTP plano
+    // (DOMAIN=:80, sin dominio/TLS todavía) la cookie nunca se guardaría y el login se vería
+    // "exitoso" pero cualquier siguiente clic regresaría a /login. COOKIE_SECURE=false lo permite
+    // para ese caso; en producción con dominio real detrás de Caddy debe quedar en true (default).
+    secure: process.env.COOKIE_SECURE !== "false",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
