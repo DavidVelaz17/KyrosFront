@@ -78,6 +78,9 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
   const [selectedCargo, setSelectedCargo] = useState<PendingCargo | null>(null);
   const [cargoSelectError, setCargoSelectError] = useState<string | undefined>(undefined);
   const [tipoPago, setTipoPago] = useState<TipoPago>("Completo");
+  // Concepto propio de este abono (distinto del concepto del cargo): el recibo de un pago
+  // parcial debe mostrar este texto y no el concepto del cargo completo.
+  const [conceptoAbono, setConceptoAbono] = useState("");
   const [showCargo, setShowCargo] = useState(false);
   const [cargoValues, setCargoValues] = useState<NewCargoSectionValues>(EMPTY_NEW_CARGO_SECTION);
   const [cargoErrors, setCargoErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
@@ -104,6 +107,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
       setSelectedCargo(null);
       setCargoSelectError(undefined);
       setTipoPago("Completo");
+      setConceptoAbono("");
       setShowCargo(false);
       setCargoValues(EMPTY_NEW_CARGO_SECTION);
       setCargoErrors(undefined);
@@ -141,8 +145,9 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
 
   function handleSelectTipoPago(tipo: TipoPago) {
     setTipoPago(tipo);
-    if (tipo === "Completo" && selectedCargo) {
-      setValue("montoPagadoPago", String(selectedCargo.montoRestante));
+    if (tipo === "Completo") {
+      setConceptoAbono("");
+      if (selectedCargo) setValue("montoPagadoPago", String(selectedCargo.montoRestante));
     }
   }
 
@@ -219,6 +224,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
       fechaPago: values.fecha,
       metodoPago: values.metodoPago,
       requiereFactura: values.requiereFactura,
+      conceptoPago: tipoPago === "Parcial" ? conceptoAbono : undefined,
     });
 
     if (showCargo) {
@@ -378,6 +384,17 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
                         )}
                       />
                     </Field>
+
+                    {tipoPago === "Parcial" && (
+                      <Field label="Concepto del abono" htmlFor="conceptoAbono">
+                        <Input
+                          id="conceptoAbono"
+                          placeholder="Ej. Abono a colegiatura"
+                          value={conceptoAbono}
+                          onChange={(event) => setConceptoAbono(event.target.value)}
+                        />
+                      </Field>
+                    )}
                   </>
                 )}
               </>

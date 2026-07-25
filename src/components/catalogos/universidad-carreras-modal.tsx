@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -16,7 +18,6 @@ import {
   vincularCarreraUniversidad,
   type Carrera,
 } from "@/lib/api/catalogos";
-import { CarreraFormModal } from "@/components/catalogos/carrera-form-modal";
 
 interface UniversidadCarrerasModalProps {
   open: boolean;
@@ -35,12 +36,25 @@ export function UniversidadCarrerasModal({ open, onClose, universidad }: Univers
   const [linking, setLinking] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | undefined>(undefined);
+  // El formulario de "Nueva carrera" se muestra dentro de este mismo modal (no como un segundo
+  // <dialog> anidado): abrir un modal nativo encima de otro ya abierto no es un patrón usado en
+  // ningún otro lugar de la app y el clic en "Guardar" no llegaba a registrarse.
   const [carreraFormOpen, setCarreraFormOpen] = useState(false);
+  const [nuevaCarreraNombre, setNuevaCarreraNombre] = useState("");
+  const [nuevaCarreraArea, setNuevaCarreraArea] = useState("");
+  const [nuevaCarreraError, setNuevaCarreraError] = useState<string | undefined>(undefined);
+  const [creandoCarrera, setCreandoCarrera] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia el formulario de "Nueva carrera" al cerrar
+      setCarreraFormOpen(false);
+      setNuevaCarreraNombre("");
+      setNuevaCarreraArea("");
+      setNuevaCarreraError(undefined);
+      return;
+    }
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- vuelve a mostrar el spinner cada vez que se reabre el modal
     setLoading(true);
     setActionError(undefined);
     Promise.all([listCarrerasByUniversidad(universidad.id), listCarreras(), listAreas()]).then(
@@ -103,10 +117,44 @@ export function UniversidadCarrerasModal({ open, onClose, universidad }: Univers
     await reloadLinked();
   }
 
+  function handleOpenNuevaCarrera() {
+    setNuevaCarreraNombre("");
+    setNuevaCarreraArea(areas[0]?.id ?? "");
+    setNuevaCarreraError(undefined);
+    setCarreraFormOpen(true);
+  }
+
+  function handleCancelNuevaCarrera() {
+    setCarreraFormOpen(false);
+    setNuevaCarreraNombre("");
+    setNuevaCarreraArea("");
+    setNuevaCarreraError(undefined);
+  }
+
+  async function handleSubmitNuevaCarrera() {
+    const trimmed = nuevaCarreraNombre.trim();
+    if (!trimmed) {
+      setNuevaCarreraError("El nombre de la carrera es requerido");
+      return;
+    }
+    if (!nuevaCarreraArea) {
+      setNuevaCarreraError("Selecciona un área");
+      return;
+    }
+    setCreandoCarrera(true);
+    try {
+      await handleCreateCarrera(trimmed, nuevaCarreraArea);
+      handleCancelNuevaCarrera();
+    } catch (err) {
+      setNuevaCarreraError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
+    } finally {
+      setCreandoCarrera(false);
+    }
+  }
+
   return (
-    <>
-      <Modal open={open} onClose={onClose} title={`Carreras de ${universidad.label}`} size="sm">
-        <div className="flex flex-col gap-4">
+    <Modal open={open} onClose={onClose} title={`Carreras de ${universidad.label}`} size="sm">
+      <div className="flex flex-col gap-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Spinner />
@@ -161,23 +209,45 @@ export function UniversidadCarrerasModal({ open, onClose, universidad }: Univers
                 </Button>
               </div>
 
-              <Button type="button" variant="secondary" size="sm" onClick={() => setCarreraFormOpen(true)}>
-                <Plus className="h-4 w-4" />
-                Nueva carrera
-              </Button>
+              {carreraFormOpen ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                  <Field label="Carrera" htmlFor="nueva-carrera-nombre" error={nuevaCarreraError} required>
+                    <Input
+                      id="nueva-carrera-nombre"
+                      value={nuevaCarreraNombre}
+                      onChange={(event) => setNuevaCarreraNombre(event.target.value)}
+                      autoFocus
+                    />
+                  </Field>
+                  <Field label="Área" htmlFor="nueva-carrera-area" required>
+                    <Select id="nueva-carrera-area" value={nuevaCarreraArea} onChange={(event) => setNuevaCarreraArea(event.target.value)}>
+                      {areas.map((area) => (
+                        <option key={area.id} value={area.id}>
+                          {area.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <div className="flex justify-end gap-2">
+                    <Button type="button" variant="secondary" size="sm" onClick={handleCancelNuevaCarrera} disabled={creandoCarrera}>
+                      Cancelar
+                    </Button>
+                    <Button type="button" size="sm" onClick={handleSubmitNuevaCarrera} disabled={creandoCarrera}>
+                      {creandoCarrera ? "Guardando..." : "Guardar"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button type="button" variant="secondary" size="sm" onClick={handleOpenNuevaCarrera}>
+                  <Plus className="h-4 w-4" />
+                  Nueva carrera
+                </Button>
+              )}
 
               {actionError && <p className="text-sm text-red-600">{actionError}</p>}
             </>
           )}
-        </div>
-      </Modal>
-
-      <CarreraFormModal
-        open={carreraFormOpen}
-        areas={areas}
-        onClose={() => setCarreraFormOpen(false)}
-        onSubmit={handleCreateCarrera}
-      />
-    </>
+      </div>
+    </Modal>
   );
 }

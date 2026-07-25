@@ -41,9 +41,9 @@ export interface Student {
   nombre: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
-  edad: number;
-  telefono: string;
-  escuelaProcedencia: string;
+  edad?: number;
+  telefono?: string;
+  escuelaProcedencia?: string;
   gradoEscolar: string;
   tutorNombre: string;
   tutorTelefono: string;

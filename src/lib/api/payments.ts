@@ -26,6 +26,9 @@ interface PagoDto {
   cargo: CargoDto;
   usuario: PagoUsuarioRef | null;
   requiereFactura: boolean;
+  /** Concepto propio de este pago (p.ej. "Abono a inscripción"). Si es null, el recibo usa
+   *  el concepto del cargo (dto.cargo.conceptoCargo). */
+  conceptoPago: string | null;
 }
 
 /**
@@ -40,7 +43,9 @@ function toPayment(dto: PagoDto): Payment {
     matricula: dto.cargo.estudiante.matricula,
     grupoId: dto.cargo.estudiante.grupo ? String(dto.cargo.estudiante.grupo.idGrupo) : "",
     grupoNombre: dto.cargo.estudiante.grupo?.nombreGrupo ?? "Sin grupo",
-    concepto: (dto.cargo.conceptoCargo ?? "Otro") as PaymentConcept,
+    // El concepto propio del pago (ej. "Abono a inscripción" en un pago parcial) tiene prioridad
+    // sobre el concepto del cargo: así el recibo de un abono no muestra el concepto del cargo completo.
+    concepto: (dto.conceptoPago || dto.cargo.conceptoCargo || "Otro") as PaymentConcept,
     tipoMensualidad: TIPO_MENSUALIDAD_FROM_BACKEND[dto.cargo.tipoMensualidadCargo] ?? "Pago completo",
     monto: dto.montoPagadoPago,
     metodoPago: METODO_PAGO_FROM_BACKEND[dto.metodoPago] ?? "Efectivo",
@@ -116,6 +121,9 @@ interface CreatePagoForCargoInput {
   fechaPago: string;
   metodoPago: PaymentMethod;
   requiereFactura: boolean;
+  /** Concepto propio de este pago (ej. abono parcial); si no se manda, el recibo cae al
+   *  concepto del cargo. */
+  conceptoPago?: string;
 }
 
 /** Registra un pago sobre un cargo ya existente, sin crear uno nuevo (acción rápida "Nuevo pago"). */
@@ -134,6 +142,7 @@ export async function createPagoForCargo(input: CreatePagoForCargoInput): Promis
       idCargo: input.idCargo,
       idUsuario: session.idUsuario,
       requiereFactura: input.requiereFactura,
+      conceptoPago: input.conceptoPago || null,
     }),
   });
 

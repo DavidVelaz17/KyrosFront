@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { HORARIO_OPTIONS, INGRESO_A_OPTIONS } from "@/lib/types/student";
+import { HORARIO_OPTIONS, INGRESO_A_OPTIONS, studentFullName } from "@/lib/types/student";
 import type { CreateStudentInput, Horario, IngresoA, Student } from "@/lib/types/student";
 import type { Group } from "@/lib/types/group";
 import {
@@ -85,6 +85,17 @@ const TIPO_PAGO_CARGO_LABELS: Record<TipoPagoCargo, string> = {
   Pendiente: "No pagar aún",
 };
 
+/** El formulario captura un solo campo "Nombre completo"; se divide en nombre/apellido paterno/
+ *  apellido materno (lo que el backend sigue esperando) al guardar. Se exigen al menos 3 palabras
+ *  porque apellido paterno y materno son obligatorios del lado del backend. */
+function splitNombreCompleto(value: string): { nombre: string; apellidoPaterno: string; apellidoMaterno: string } {
+  const parts = value.trim().split(/\s+/).filter(Boolean);
+  const apellidoMaterno = parts.pop() ?? "";
+  const apellidoPaterno = parts.pop() ?? "";
+  const nombre = parts.join(" ");
+  return { nombre, apellidoPaterno, apellidoMaterno };
+}
+
 const CreateStudentSchema = z
   .object({
     ingresoA: z.enum(INGRESO_A_OPTIONS),
@@ -92,15 +103,30 @@ const CreateStudentSchema = z
     // UniversidadDestinoField y sus estados de error): no usan un único idDestino de este Select genérico.
     idDestino: z.string().optional(),
     matricula: z.string().min(1, "La matrícula es requerida"),
-    nombre: z.string().min(1, "El nombre es requerido"),
-    apellidoPaterno: z.string().min(1, "El apellido paterno es requerido"),
-    apellidoMaterno: z.string().min(1, "El apellido materno es requerido"),
-    edad: z.coerce.number({ error: "La edad es requerida" }).int().min(5, "Edad inválida").max(99, "Edad inválida"),
-    telefono: z.string().min(10, "Ingresa un teléfono a 10 dígitos").max(15),
-    escuelaProcedencia: z.string().min(1, "La escuela de procedencia es requerida"),
+    nombreCompleto: z
+      .string()
+      .min(1, "El nombre completo es requerido")
+      .refine(
+        (value) => value.trim().split(/\s+/).filter(Boolean).length >= 3,
+        "Incluye nombre, apellido paterno y apellido materno"
+      ),
+    // La edad, el teléfono y la escuela de procedencia son opcionales.
+    edad: z.preprocess(
+      (val) => (val === "" || val === undefined || val === null ? undefined : val),
+      z.coerce.number().int().min(5, "Edad inválida").max(99, "Edad inválida").optional()
+    ),
+    telefono: z
+      .string()
+      .optional()
+      .refine((val) => !val || (val.length >= 10 && val.length <= 15), "Ingresa un teléfono a 10 dígitos"),
+    escuelaProcedencia: z.string().optional(),
     gradoEscolar: z.string().min(1, "El grado escolar es requerido"),
-    tutorNombre: z.string().min(1, "El nombre del tutor es requerido"),
-    tutorTelefono: z.string().min(10, "Ingresa un teléfono a 10 dígitos").max(15),
+    // El nombre y el número del tutor son opcionales.
+    tutorNombre: z.string().optional(),
+    tutorTelefono: z
+      .string()
+      .optional()
+      .refine((val) => !val || (val.length >= 10 && val.length <= 15), "Ingresa un teléfono a 10 dígitos"),
     direccion: z.string().min(1, "La dirección es requerida"),
     notas: z.string().optional(),
     fechaInscripcion: z.string().min(1, "La fecha de inscripción es requerida"),
@@ -135,9 +161,7 @@ function buildDefaultValues(grupoId: string): CreateStudentFormInput {
     ingresoA: "Universidad",
     idDestino: "",
     matricula: "",
-    nombre: "",
-    apellidoPaterno: "",
-    apellidoMaterno: "",
+    nombreCompleto: "",
     edad: undefined,
     telefono: "",
     escuelaProcedencia: "",
@@ -163,9 +187,7 @@ function buildEditValues(student: Student, grupoId: string): CreateStudentFormIn
     ingresoA: student.ingresoA,
     idDestino: "",
     matricula: student.matricula,
-    nombre: student.nombre,
-    apellidoPaterno: student.apellidoPaterno,
-    apellidoMaterno: student.apellidoMaterno,
+    nombreCompleto: studentFullName(student),
     edad: student.edad,
     telefono: student.telefono,
     escuelaProcedencia: student.escuelaProcedencia,
@@ -213,6 +235,9 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   // cargo). No es un campo del formulario porque solo aplica a este caso puntual.
   const [montoAbonado, setMontoAbonado] = useState("");
   const [montoAbonadoError, setMontoAbonadoError] = useState<string | undefined>(undefined);
+  // Concepto propio de este abono (ej. "Abono a inscripción"), distinto del concepto del cargo:
+  // el recibo del pago parcial debe mostrar este texto y no el concepto del cargo completo.
+  const [conceptoAbono, setConceptoAbono] = useState("");
   // Cargo aparte del principal (ej. la mensualidad del siguiente mes): se genera siempre
   // independiente del pago, aunque el cargo principal sí se esté pagando en este mismo paso.
   const [showExtraCargo, setShowExtraCargo] = useState(false);
@@ -369,6 +394,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       setTipoPagoCargo("Completo");
       setMontoAbonado("");
       setMontoAbonadoError(undefined);
+      setConceptoAbono("");
       setShowExtraCargo(false);
       setExtraCargoValues(EMPTY_NEW_CARGO_SECTION);
       setExtraCargoErrors(undefined);
@@ -496,18 +522,19 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   }
 
   async function persistStudent(values: CreateStudentFormOutput): Promise<Student> {
+    const { nombre, apellidoPaterno, apellidoMaterno } = splitNombreCompleto(values.nombreCompleto);
     const input: CreateStudentInput = {
       ingresoA: values.ingresoA as IngresoA,
       matricula: values.matricula,
-      nombre: values.nombre,
-      apellidoPaterno: values.apellidoPaterno,
-      apellidoMaterno: values.apellidoMaterno,
+      nombre,
+      apellidoPaterno,
+      apellidoMaterno,
       edad: values.edad,
       telefono: values.telefono,
       escuelaProcedencia: values.escuelaProcedencia,
       gradoEscolar: values.gradoEscolar,
-      tutorNombre: values.tutorNombre,
-      tutorTelefono: values.tutorTelefono,
+      tutorNombre: values.tutorNombre ?? "",
+      tutorTelefono: values.tutorTelefono ?? "",
       direccion: values.direccion,
       notas: values.notas ?? "",
       fechaInscripcion: values.fechaInscripcion,
@@ -649,6 +676,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
         fechaPago: paymentResult.data.fechaPago,
         metodoPago: paymentResult.data.metodoPago,
         requiereFactura: paymentResult.data.requiereFactura,
+        conceptoPago: tipoPagoCargo === "Parcial" ? conceptoAbono : undefined,
       });
 
       if (showExtraCargo) {
@@ -736,7 +764,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
             isDraggingFoto && "border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-900/20"
           )}
         >
-          <Avatar src={fotoPreview} label={watch("nombre")?.slice(0, 2)?.toUpperCase() || "AL"} size={56} />
+          <Avatar src={fotoPreview} label={watch("nombreCompleto")?.slice(0, 2)?.toUpperCase() || "AL"} size={56} />
           <Field label="Foto" htmlFor="foto">
             <input
               id="foto"
@@ -772,20 +800,14 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
             </Select>
           </Field>
 
-          <Field label="Nombre(s)" htmlFor="nombre" error={errors.nombre?.message} required>
-            <Input id="nombre" {...register("nombre")} />
-          </Field>
-          <Field label="Apellido paterno" htmlFor="apellidoPaterno" error={errors.apellidoPaterno?.message} required>
-            <Input id="apellidoPaterno" {...register("apellidoPaterno")} />
-          </Field>
-          <Field label="Apellido materno" htmlFor="apellidoMaterno" error={errors.apellidoMaterno?.message} required>
-            <Input id="apellidoMaterno" {...register("apellidoMaterno")} />
+          <Field label="Nombre completo" htmlFor="nombreCompleto" error={errors.nombreCompleto?.message} required className="sm:col-span-2">
+            <Input id="nombreCompleto" placeholder="Nombre(s) y apellidos" {...register("nombreCompleto")} />
           </Field>
 
-          <Field label="Edad" htmlFor="edad" error={errors.edad?.message} required>
+          <Field label="Edad" htmlFor="edad" error={errors.edad?.message}>
             <Input id="edad" type="number" {...register("edad")} />
           </Field>
-          <Field label="Teléfono" htmlFor="telefono" error={errors.telefono?.message} required>
+          <Field label="Teléfono" htmlFor="telefono" error={errors.telefono?.message}>
             <Input id="telefono" type="tel" {...register("telefono")} />
           </Field>
           <Field label="Horario" htmlFor="horario" error={errors.horario?.message} required>
@@ -798,7 +820,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
             </Select>
           </Field>
 
-          <Field label="Escuela de procedencia" htmlFor="escuelaProcedencia" error={errors.escuelaProcedencia?.message} required>
+          <Field label="Escuela de procedencia" htmlFor="escuelaProcedencia" error={errors.escuelaProcedencia?.message}>
             <Input id="escuelaProcedencia" {...register("escuelaProcedencia")} />
           </Field>
           <Field label="Grado escolar" htmlFor="gradoEscolar" error={errors.gradoEscolar?.message} required>
@@ -808,10 +830,10 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
             <Input id="fechaInscripcion" type="date" {...register("fechaInscripcion")} />
           </Field>
 
-          <Field label="Nombre del tutor" htmlFor="tutorNombre" error={errors.tutorNombre?.message} required>
+          <Field label="Nombre del tutor" htmlFor="tutorNombre" error={errors.tutorNombre?.message}>
             <Input id="tutorNombre" {...register("tutorNombre")} />
           </Field>
-          <Field label="Número del tutor" htmlFor="tutorTelefono" error={errors.tutorTelefono?.message} required>
+          <Field label="Número del tutor" htmlFor="tutorTelefono" error={errors.tutorTelefono?.message}>
             <Input id="tutorTelefono" type="tel" {...register("tutorTelefono")} />
           </Field>
           <Field label="Dirección" htmlFor="direccion" error={errors.direccion?.message} required className="sm:col-span-2">
@@ -962,6 +984,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                             if (option !== "Parcial") {
                               setMontoAbonado("");
                               setMontoAbonadoError(undefined);
+                              setConceptoAbono("");
                             }
                           }}
                           className={cn(
@@ -988,16 +1011,26 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                     <>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         {tipoPagoCargo === "Parcial" && (
-                          <Field label="Monto abonado ahora (MXN)" htmlFor="montoAbonado" error={montoAbonadoError} required>
-                            <Input
-                              id="montoAbonado"
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="0.00"
-                              value={montoAbonado}
-                              onChange={(event) => setMontoAbonado(sanitizeAmountInput(event.target.value))}
-                            />
-                          </Field>
+                          <>
+                            <Field label="Monto abonado ahora (MXN)" htmlFor="montoAbonado" error={montoAbonadoError} required>
+                              <Input
+                                id="montoAbonado"
+                                type="text"
+                                inputMode="decimal"
+                                placeholder="0.00"
+                                value={montoAbonado}
+                                onChange={(event) => setMontoAbonado(sanitizeAmountInput(event.target.value))}
+                              />
+                            </Field>
+                            <Field label="Concepto del abono" htmlFor="conceptoAbono">
+                              <Input
+                                id="conceptoAbono"
+                                placeholder="Ej. Abono a inscripción"
+                                value={conceptoAbono}
+                                onChange={(event) => setConceptoAbono(event.target.value)}
+                              />
+                            </Field>
+                          </>
                         )}
                         <Field label="Método de pago" htmlFor="metodoPago" error={errors.metodoPago?.message} required>
                           <Select id="metodoPago" {...register("metodoPago")}>

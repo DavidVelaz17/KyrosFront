@@ -86,9 +86,9 @@ export function StudentDetailsModal({ open, onClose, student }: { open: boolean;
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <DetailItem label="Edad" value={String(student.edad)} />
-          <DetailItem label="Teléfono" value={student.telefono} />
-          <DetailItem label="Escuela de procedencia" value={student.escuelaProcedencia} />
+          <DetailItem label="Edad" value={student.edad != null ? String(student.edad) : ""} />
+          <DetailItem label="Teléfono" value={student.telefono ?? ""} />
+          <DetailItem label="Escuela de procedencia" value={student.escuelaProcedencia ?? ""} />
           <DetailItem label="Grado escolar" value={student.gradoEscolar} />
           <DetailItem label="Fecha de inscripción" value={formatDate(student.fechaInscripcion)} />
           <DetailItem label="Horario" value={student.horario} />

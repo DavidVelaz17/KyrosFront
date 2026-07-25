@@ -34,9 +34,9 @@ interface EstudianteDto {
   nombre: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
-  edad: number;
-  numeroTelefonico: number;
-  escuelaProcedencia: string;
+  edad: number | null;
+  numeroTelefonico: number | null;
+  escuelaProcedencia: string | null;
   gradoEscolar: string;
   nombreTutor: string | null;
   telefonoTutor: string | null;
@@ -72,9 +72,9 @@ function toStudent(dto: EstudianteDto): Student {
     nombre: dto.nombre,
     apellidoPaterno: dto.apellidoPaterno,
     apellidoMaterno: dto.apellidoMaterno,
-    edad: dto.edad,
-    telefono: String(dto.numeroTelefonico),
-    escuelaProcedencia: dto.escuelaProcedencia,
+    edad: dto.edad ?? undefined,
+    telefono: dto.numeroTelefonico != null ? String(dto.numeroTelefonico) : "",
+    escuelaProcedencia: dto.escuelaProcedencia ?? "",
     gradoEscolar: dto.gradoEscolar,
     tutorNombre: dto.nombreTutor ?? "",
     tutorTelefono: dto.telefonoTutor ?? "",
@@ -94,9 +94,9 @@ function toForm(input: CreateStudentInput) {
     nombre: input.nombre,
     apellidoPaterno: input.apellidoPaterno,
     apellidoMaterno: input.apellidoMaterno,
-    edad: input.edad,
-    numeroTelefonico: Number(input.telefono.replace(/\D/g, "")),
-    escuelaProcedencia: input.escuelaProcedencia,
+    edad: input.edad ?? null,
+    numeroTelefonico: input.telefono ? Number(input.telefono.replace(/\D/g, "")) : null,
+    escuelaProcedencia: input.escuelaProcedencia || null,
     gradoEscolar: input.gradoEscolar,
     nombreTutor: input.tutorNombre || null,
     telefonoTutor: input.tutorTelefono || null,
