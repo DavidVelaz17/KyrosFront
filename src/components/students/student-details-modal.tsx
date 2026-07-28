@@ -79,8 +79,8 @@ export function StudentDetailsModal({ open, onClose, student }: { open: boolean;
             <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{studentFullName(student)}</p>
             <p className="font-mono text-sm text-zinc-500">{student.matricula}</p>
             <div className="mt-1 flex gap-2">
-              <Badge tone="indigo">{student.ingresoA}</Badge>
-              <Badge>{student.horario}</Badge>
+              {student.ingresoA && <Badge tone="indigo">{student.ingresoA}</Badge>}
+              {student.horario && <Badge>{student.horario}</Badge>}
             </div>
           </div>
         </div>
@@ -89,54 +89,56 @@ export function StudentDetailsModal({ open, onClose, student }: { open: boolean;
           <DetailItem label="Edad" value={student.edad != null ? String(student.edad) : ""} />
           <DetailItem label="Teléfono" value={student.telefono ?? ""} />
           <DetailItem label="Escuela de procedencia" value={student.escuelaProcedencia ?? ""} />
-          <DetailItem label="Grado escolar" value={student.gradoEscolar} />
-          <DetailItem label="Fecha de inscripción" value={formatDate(student.fechaInscripcion)} />
-          <DetailItem label="Horario" value={student.horario} />
+          <DetailItem label="Grado escolar" value={student.gradoEscolar ?? ""} />
+          <DetailItem label="Fecha de inscripción" value={student.fechaInscripcion ? formatDate(student.fechaInscripcion) : ""} />
+          <DetailItem label="Horario" value={student.horario ?? ""} />
           <DetailItem label="Nombre del tutor" value={student.tutorNombre} />
           <DetailItem label="Número del tutor" value={student.tutorTelefono} />
         </div>
 
-        <DetailItem label="Dirección" value={student.direccion} />
+        <DetailItem label="Dirección" value={student.direccion ?? ""} />
         <DetailItem label="Notas" value={student.notas} />
 
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
-            Información de {student.ingresoA}
-          </p>
-          {loadingDestinos ? (
-            <div className="flex justify-center py-4">
-              <Spinner />
-            </div>
-          ) : destinos.length === 0 ? (
-            <p className="text-sm text-zinc-500">Sin información registrada.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {destinos.map((destino) => (
-                <div key={destino.id} className="flex flex-col gap-1 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800">
-                  <Badge tone="indigo">{destino.nombre}</Badge>
-                  {destino.carreras && destino.carreras.length > 0 && (
-                    <div className="flex flex-col">
-                      {destino.carreras.map((carrera, index) => (
-                        <p key={index} className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {carrera.nombre} · {carrera.areaNombre}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {destino.materias && destino.materias.length > 0 && (
-                    <div className="flex flex-col">
-                      {destino.materias.map((materia) => (
-                        <p key={materia.id} className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {materia.nombre}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {student.ingresoA && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Información de {student.ingresoA}
+            </p>
+            {loadingDestinos ? (
+              <div className="flex justify-center py-4">
+                <Spinner />
+              </div>
+            ) : destinos.length === 0 ? (
+              <p className="text-sm text-zinc-500">Sin información registrada.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {destinos.map((destino) => (
+                  <div key={destino.id} className="flex flex-col gap-1 rounded-lg border border-zinc-200 px-3 py-2 dark:border-zinc-800">
+                    <Badge tone="indigo">{destino.nombre}</Badge>
+                    {destino.carreras && destino.carreras.length > 0 && (
+                      <div className="flex flex-col">
+                        {destino.carreras.map((carrera, index) => (
+                          <p key={index} className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {carrera.nombre} · {carrera.areaNombre}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {destino.materias && destino.materias.length > 0 && (
+                      <div className="flex flex-col">
+                        {destino.materias.map((materia) => (
+                          <p key={materia.id} className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {materia.nombre}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Dentro del <dialog> a propósito (no como hermano fuera del Modal): un <dialog> abierto

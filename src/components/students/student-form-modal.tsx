@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { HORARIO_OPTIONS, INGRESO_A_OPTIONS, studentFullName } from "@/lib/types/student";
-import type { CreateStudentInput, Horario, IngresoA, Student } from "@/lib/types/student";
+import type { CreateStudentInput, IngresoA, Student } from "@/lib/types/student";
 import type { Group } from "@/lib/types/group";
 import {
   addDestino,
@@ -98,7 +98,8 @@ function splitNombreCompleto(value: string): { nombre: string; apellidoPaterno: 
 
 const CreateStudentSchema = z
   .object({
-    ingresoA: z.enum(INGRESO_A_OPTIONS),
+    // "Ingresa a" es opcional: sin él, no se muestra ni se valida ninguna sección de destino.
+    ingresoA: z.enum(INGRESO_A_OPTIONS).optional(),
     // Requerido salvo para Asesorías y Universidad, que validan aparte (ver AsesoriaDestinoField /
     // UniversidadDestinoField y sus estados de error): no usan un único idDestino de este Select genérico.
     idDestino: z.string().optional(),
@@ -120,19 +121,23 @@ const CreateStudentSchema = z
       .optional()
       .refine((val) => !val || (val.length >= 10 && val.length <= 15), "Ingresa un teléfono a 10 dígitos"),
     escuelaProcedencia: z.string().optional(),
-    gradoEscolar: z.string().min(1, "El grado escolar es requerido"),
+    // El grado escolar, la dirección, la fecha de inscripción y el horario son opcionales.
+    gradoEscolar: z.string().optional(),
     // El nombre y el número del tutor son opcionales.
     tutorNombre: z.string().optional(),
     tutorTelefono: z
       .string()
       .optional()
       .refine((val) => !val || (val.length >= 10 && val.length <= 15), "Ingresa un teléfono a 10 dígitos"),
-    direccion: z.string().min(1, "La dirección es requerida"),
+    direccion: z.string().optional(),
     notas: z.string().optional(),
-    fechaInscripcion: z.string().min(1, "La fecha de inscripción es requerida"),
+    fechaInscripcion: z.string().optional(),
     // El grupo es opcional: un alumno puede registrarse sin grupo y asignársele uno después.
     grupoId: z.string().optional(),
-    horario: z.enum(HORARIO_OPTIONS),
+    horario: z.preprocess(
+      (val) => (val === "" || val === undefined || val === null ? undefined : val),
+      z.enum(HORARIO_OPTIONS).optional()
+    ),
     // Campos de pago: opcionales aquí para no bloquear "Guardar alumno"; se exigen
     // aparte (ver PaymentSectionSchema) solo cuando se usa el botón "Pagar". El resto de los
     // datos del pago (concepto, tipo de mensualidad, monto) se toman directamente de la
@@ -142,7 +147,7 @@ const CreateStudentSchema = z
     requiereFactura: z.boolean().optional(),
   })
   .superRefine((values, ctx) => {
-    if (values.ingresoA !== "Asesorías" && values.ingresoA !== "Universidad" && !values.idDestino) {
+    if (values.ingresoA && values.ingresoA !== "Asesorías" && values.ingresoA !== "Universidad" && !values.idDestino) {
       ctx.addIssue({ code: "custom", path: ["idDestino"], message: "Selecciona una opción" });
     }
   });
@@ -158,7 +163,7 @@ type CreateStudentFormOutput = z.output<typeof CreateStudentSchema>;
 
 function buildDefaultValues(grupoId: string): CreateStudentFormInput {
   return {
-    ingresoA: "Universidad",
+    ingresoA: undefined,
     idDestino: "",
     matricula: "",
     nombreCompleto: "",
@@ -172,7 +177,7 @@ function buildDefaultValues(grupoId: string): CreateStudentFormInput {
     notas: "",
     fechaInscripcion: todayISODate(),
     grupoId,
-    horario: "Escolarizado",
+    horario: undefined,
     metodoPago: "Efectivo",
     fechaPago: todayISODate(),
     requiereFactura: false,
@@ -238,6 +243,8 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   // Concepto propio de este abono (ej. "Abono a inscripción"), distinto del concepto del cargo:
   // el recibo del pago parcial debe mostrar este texto y no el concepto del cargo completo.
   const [conceptoAbono, setConceptoAbono] = useState("");
+  // Observaciones capturadas al registrar el pago (se muestran en el recibo).
+  const [notasPago, setNotasPago] = useState("");
   // Cargo aparte del principal (ej. la mensualidad del siguiente mes): se genera siempre
   // independiente del pago, aunque el cargo principal sí se esté pagando en este mismo paso.
   const [showExtraCargo, setShowExtraCargo] = useState(false);
@@ -285,10 +292,10 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
 
     listExistingMatriculas().then((matriculas) => {
       if (cancelled) return;
-      const prefix = levelPrefix(ingresoA as IngresoA);
+      const prefix = levelPrefix(ingresoA);
       const year = new Date().getFullYear();
       const sequence = nextSequenceForPrefix(matriculas, prefix, year);
-      const suggestion = suggestMatricula(ingresoA as IngresoA, year, sequence);
+      const suggestion = suggestMatricula(ingresoA, year, sequence);
 
       if (!matricula || matricula === lastSuggested.current) {
         setValue("matricula", suggestion);
@@ -305,7 +312,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   useEffect(() => {
     if (!open) return;
     setValue("idDestino", "");
-    const fetcher = DESTINO_FETCHERS[ingresoA as IngresoA];
+    const fetcher = ingresoA ? DESTINO_FETCHERS[ingresoA] : undefined;
     if (!fetcher) {
       setDestinoOptions([]);
       return;
@@ -395,6 +402,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       setMontoAbonado("");
       setMontoAbonadoError(undefined);
       setConceptoAbono("");
+      setNotasPago("");
       setShowExtraCargo(false);
       setExtraCargoValues(EMPTY_NEW_CARGO_SECTION);
       setExtraCargoErrors(undefined);
@@ -476,7 +484,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
     }
   }
 
-  function validateAsesoriaSlots(ingresoActual: IngresoA): boolean {
+  function validateAsesoriaSlots(ingresoActual: IngresoA | undefined): boolean {
     if (ingresoActual !== "Asesorías") return true;
     if (asesoriaSlots.length === 0) {
       setAsesoriaError("Selecciona al menos un día y una hora de asesoría");
@@ -490,7 +498,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
     return true;
   }
 
-  function validateUniversidad(ingresoActual: IngresoA): boolean {
+  function validateUniversidad(ingresoActual: IngresoA | undefined): boolean {
     if (ingresoActual !== "Universidad") return true;
     if (!universidadSlots.some((slot) => slot.universidadId)) {
       setUniversidadError("Busca y selecciona al menos una universidad");
@@ -524,7 +532,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   async function persistStudent(values: CreateStudentFormOutput): Promise<Student> {
     const { nombre, apellidoPaterno, apellidoMaterno } = splitNombreCompleto(values.nombreCompleto);
     const input: CreateStudentInput = {
-      ingresoA: values.ingresoA as IngresoA,
+      ingresoA: values.ingresoA,
       matricula: values.matricula,
       nombre,
       apellidoPaterno,
@@ -539,7 +547,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       notas: values.notas ?? "",
       fechaInscripcion: values.fechaInscripcion,
       grupoId: values.grupoId ?? "",
-      horario: values.horario as Horario,
+      horario: values.horario,
       fotoUrl: null,
     };
 
@@ -582,8 +590,8 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   }
 
   async function onSubmit(values: CreateStudentFormOutput) {
-    if (!validateAsesoriaSlots(values.ingresoA as IngresoA)) return;
-    if (!validateUniversidad(values.ingresoA as IngresoA)) return;
+    if (!validateAsesoriaSlots(values.ingresoA)) return;
+    if (!validateUniversidad(values.ingresoA)) return;
     if (showPagoInscripcion) {
       const validationErrors = validateNewCargoSection(pagoInscripcionValues);
       if (validationErrors) {
@@ -632,8 +640,8 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       }
     }
     if (!studentResult.success || !paymentResult.success) return;
-    if (!validateAsesoriaSlots(studentResult.data.ingresoA as IngresoA)) return;
-    if (!validateUniversidad(studentResult.data.ingresoA as IngresoA)) return;
+    if (!validateAsesoriaSlots(studentResult.data.ingresoA)) return;
+    if (!validateUniversidad(studentResult.data.ingresoA)) return;
 
     const cargoValidationErrors = validateNewCargoSection(pagoInscripcionValues);
     if (cargoValidationErrors) {
@@ -677,6 +685,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
         metodoPago: paymentResult.data.metodoPago,
         requiereFactura: paymentResult.data.requiereFactura,
         conceptoPago: tipoPagoCargo === "Parcial" ? conceptoAbono : undefined,
+        notas: notasPago,
       });
 
       if (showExtraCargo) {
@@ -810,8 +819,9 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
           <Field label="Teléfono" htmlFor="telefono" error={errors.telefono?.message}>
             <Input id="telefono" type="tel" {...register("telefono")} />
           </Field>
-          <Field label="Horario" htmlFor="horario" error={errors.horario?.message} required>
+          <Field label="Horario" htmlFor="horario" error={errors.horario?.message}>
             <Select id="horario" {...register("horario")}>
+              <option value="">Sin especificar</option>
               {HORARIO_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
@@ -823,10 +833,10 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
           <Field label="Escuela de procedencia" htmlFor="escuelaProcedencia" error={errors.escuelaProcedencia?.message}>
             <Input id="escuelaProcedencia" {...register("escuelaProcedencia")} />
           </Field>
-          <Field label="Grado escolar" htmlFor="gradoEscolar" error={errors.gradoEscolar?.message} required>
+          <Field label="Grado escolar" htmlFor="gradoEscolar" error={errors.gradoEscolar?.message}>
             <Input id="gradoEscolar" placeholder="Ej. 3er semestre" {...register("gradoEscolar")} />
           </Field>
-          <Field label="Fecha de inscripción" htmlFor="fechaInscripcion" error={errors.fechaInscripcion?.message} required>
+          <Field label="Fecha de inscripción" htmlFor="fechaInscripcion" error={errors.fechaInscripcion?.message}>
             <Input id="fechaInscripcion" type="date" {...register("fechaInscripcion")} />
           </Field>
 
@@ -836,7 +846,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
           <Field label="Número del tutor" htmlFor="tutorTelefono" error={errors.tutorTelefono?.message}>
             <Input id="tutorTelefono" type="tel" {...register("tutorTelefono")} />
           </Field>
-          <Field label="Dirección" htmlFor="direccion" error={errors.direccion?.message} required className="sm:col-span-2">
+          <Field label="Dirección" htmlFor="direccion" error={errors.direccion?.message} className="sm:col-span-2">
             <Textarea id="direccion" className="min-h-10" {...register("direccion")} />
           </Field>
         </div>
@@ -847,7 +857,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
 
         <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Ingresa a: <span className="text-red-500">*</span>
+            Ingresa a
             {editStudent && <span className="ml-2 text-xs font-normal text-zinc-400">(no se puede cambiar al editar)</span>}
           </h3>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -856,7 +866,9 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                 key={option}
                 type="button"
                 disabled={Boolean(editStudent)}
-                onClick={() => setValue("ingresoA", option, { shouldValidate: true })}
+                onClick={() =>
+                  setValue("ingresoA", ingresoA === option ? undefined : option, { shouldValidate: true })
+                }
                 className={cn(
                   "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
                   ingresoA === option
@@ -885,15 +897,15 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
               onChange={setUniversidadSlots}
               error={universidadError}
             />
-          ) : (
-            <Field label={DESTINO_LABELS[ingresoA as IngresoA]} htmlFor="idDestino" error={errors.idDestino?.message} required>
+          ) : ingresoA ? (
+            <Field label={DESTINO_LABELS[ingresoA]} htmlFor="idDestino" error={errors.idDestino?.message} required>
               {loadingDestinos ? (
                 <div className="flex h-10 items-center gap-2 text-sm text-zinc-500">
                   <Spinner className="h-4 w-4" />
                   Cargando opciones...
                 </div>
               ) : destinoOptions.length === 0 ? (
-                <p className="py-2 text-sm text-zinc-500">No hay opciones de {DESTINO_LABELS[ingresoA as IngresoA].toLowerCase()} registradas todavía.</p>
+                <p className="py-2 text-sm text-zinc-500">No hay opciones de {DESTINO_LABELS[ingresoA].toLowerCase()} registradas todavía.</p>
               ) : (
                 <Select id="idDestino" {...register("idDestino")}>
                   <option value="">Selecciona una opción</option>
@@ -905,7 +917,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                 </Select>
               )}
             </Field>
-          )}
+          ) : null}
         </div>
 
         {!editStudent && (
@@ -1045,6 +1057,14 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                           <Input id="fechaPago" type="date" {...register("fechaPago")} />
                         </Field>
                       </div>
+
+                      <Field label="Observaciones" htmlFor="notasPago">
+                        <Textarea
+                          id="notasPago"
+                          value={notasPago}
+                          onChange={(event) => setNotasPago(event.target.value)}
+                        />
+                      </Field>
 
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                         <Checkbox {...register("requiereFactura")} />

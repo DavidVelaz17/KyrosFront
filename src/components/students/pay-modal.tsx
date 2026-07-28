@@ -225,6 +225,7 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
       metodoPago: values.metodoPago,
       requiereFactura: values.requiereFactura,
       conceptoPago: tipoPago === "Parcial" ? conceptoAbono : undefined,
+      notas: values.notas,
     });
 
     if (showCargo) {
@@ -448,15 +449,13 @@ export function PayModal({ open, onClose, student, onPaid }: PayModalProps) {
         <Field label="Fecha" htmlFor="fecha" error={errors.fecha?.message} required>
           <Input id="fecha" type="date" {...register("fecha")} />
         </Field>
+        <Field label="Observaciones" htmlFor="notas" error={errors.notas?.message}>
+          <Textarea id="notas" {...register("notas")} />
+        </Field>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
           <Checkbox {...register("requiereFactura")} />
           Este pago requiere factura
         </label>
-        {cargoMode === "nuevo" && (
-          <Field label="Notas" htmlFor="notas" error={errors.notas?.message}>
-            <Textarea id="notas" {...register("notas")} />
-          </Field>
-        )}
 
         <NewCargoSection
           show={showCargo}

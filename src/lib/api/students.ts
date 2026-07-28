@@ -2,7 +2,7 @@
 
 import type { CreateStudentInput, EstatusEstudiante, Horario, IngresoA, Student } from "@/lib/types/student";
 import { INGRESO_A_FROM_BACKEND, INGRESO_A_TO_BACKEND } from "@/lib/types/student";
-import { apiFetch, apiFetchMultipart } from "@/lib/api/http";
+import { apiFetch, apiFetchBlob, apiFetchMultipart } from "@/lib/api/http";
 
 const ESTATUS_TO_BACKEND: Record<EstatusEstudiante, string> = {
   Activo: "ACTIVO",
@@ -37,15 +37,15 @@ interface EstudianteDto {
   edad: number | null;
   numeroTelefonico: number | null;
   escuelaProcedencia: string | null;
-  gradoEscolar: string;
+  gradoEscolar: string | null;
   nombreTutor: string | null;
   telefonoTutor: string | null;
-  direccion: string;
+  direccion: string | null;
   foto: string | null;
   notas: string | null;
-  fechaInscripcion: string;
-  horario: string;
-  ingresoA: string;
+  fechaInscripcion: string | null;
+  horario: string | null;
+  ingresoA: string | null;
   grupo: GrupoRefDto | null;
   estatus: string;
 }
@@ -68,22 +68,22 @@ function toStudent(dto: EstudianteDto): Student {
   return {
     id: String(dto.idEstudiante),
     matricula: dto.matricula,
-    ingresoA: INGRESO_A_FROM_BACKEND[dto.ingresoA] ?? "Universidad",
+    ingresoA: dto.ingresoA ? INGRESO_A_FROM_BACKEND[dto.ingresoA] : undefined,
     nombre: dto.nombre,
     apellidoPaterno: dto.apellidoPaterno,
     apellidoMaterno: dto.apellidoMaterno,
     edad: dto.edad ?? undefined,
     telefono: dto.numeroTelefonico != null ? String(dto.numeroTelefonico) : "",
     escuelaProcedencia: dto.escuelaProcedencia ?? "",
-    gradoEscolar: dto.gradoEscolar,
+    gradoEscolar: dto.gradoEscolar ?? undefined,
     tutorNombre: dto.nombreTutor ?? "",
     tutorTelefono: dto.telefonoTutor ?? "",
-    direccion: dto.direccion,
+    direccion: dto.direccion ?? undefined,
     fotoUrl: resolveFotoUrl(dto.foto),
     notas: dto.notas ?? "",
-    fechaInscripcion: dto.fechaInscripcion,
+    fechaInscripcion: dto.fechaInscripcion ?? undefined,
     grupoId: dto.grupo ? String(dto.grupo.idGrupo) : "",
-    horario: HORARIO_FROM_BACKEND[dto.horario] ?? "Escolarizado",
+    horario: dto.horario ? HORARIO_FROM_BACKEND[dto.horario] : undefined,
     estatus: ESTATUS_FROM_BACKEND[dto.estatus] ?? "Activo",
   };
 }
@@ -97,15 +97,15 @@ function toForm(input: CreateStudentInput) {
     edad: input.edad ?? null,
     numeroTelefonico: input.telefono ? Number(input.telefono.replace(/\D/g, "")) : null,
     escuelaProcedencia: input.escuelaProcedencia || null,
-    gradoEscolar: input.gradoEscolar,
+    gradoEscolar: input.gradoEscolar || null,
     nombreTutor: input.tutorNombre || null,
     telefonoTutor: input.tutorTelefono || null,
-    direccion: input.direccion,
+    direccion: input.direccion || null,
     foto: null,
     notas: input.notas || null,
-    fechaInscripcion: input.fechaInscripcion,
-    horario: HORARIO_TO_BACKEND[input.horario],
-    ingresoA: INGRESO_A_TO_BACKEND[input.ingresoA],
+    fechaInscripcion: input.fechaInscripcion || null,
+    horario: input.horario ? HORARIO_TO_BACKEND[input.horario] : null,
+    ingresoA: input.ingresoA ? INGRESO_A_TO_BACKEND[input.ingresoA] : null,
     idGrupo: input.grupoId ? Number(input.grupoId) : null,
   };
 }
@@ -168,6 +168,35 @@ export async function uploadStudentPhoto(formData: FormData): Promise<Student> {
   }
   const dto = await apiFetchMultipart<EstudianteDto>(`/api/estudiantes/${studentId}/foto`, formData);
   return toStudent(dto);
+}
+
+export interface ImportStudentsError {
+  fila: number;
+  mensaje: string;
+}
+
+export interface ImportStudentsResult {
+  totalFilas: number;
+  exitosos: number;
+  errores: ImportStudentsError[];
+}
+
+/** `formData` debe traer el campo "file" (el .xlsx). Una fila inválida no aborta el lote: se
+ *  reporta en `errores` junto con las demás filas que sí se hayan importado bien. */
+export async function importStudentsExcel(formData: FormData): Promise<ImportStudentsResult> {
+  return apiFetchMultipart<ImportStudentsResult>("/api/estudiantes/importar", formData);
+}
+
+/** Devuelve los bytes de un .xlsx con todos los alumnos y su información relacionada (cargos,
+ *  pagos, destinos); el caller (siempre un componente cliente) arma el Blob y dispara la
+ *  descarga en el navegador. */
+export async function exportStudentsExcel(): Promise<ArrayBuffer> {
+  return apiFetchBlob("/api/estudiantes/exportar");
+}
+
+/** Devuelve los bytes de un .xlsx vacío con los encabezados exactos que espera importStudentsExcel. */
+export async function downloadStudentsTemplate(): Promise<ArrayBuffer> {
+  return apiFetchBlob("/api/estudiantes/plantilla");
 }
 
 /** Vincula al alumno con su destino (universidad, bachillerato, secundaria, curso de verano o

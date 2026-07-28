@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
@@ -38,6 +39,7 @@ const NewPagoSchema = z.object({
   fechaPago: z.string().min(1, "La fecha es requerida"),
   metodoPago: z.enum(PAYMENT_METHOD_OPTIONS),
   requiereFactura: z.boolean(),
+  notas: z.string().optional(),
 });
 
 type NewPagoFormInput = z.input<typeof NewPagoSchema>;
@@ -48,6 +50,7 @@ const DEFAULT_VALUES: NewPagoFormInput = {
   fechaPago: todayISODate(),
   metodoPago: "Efectivo",
   requiereFactura: false,
+  notas: "",
 };
 
 interface NewPagoModalProps {
@@ -177,6 +180,7 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       metodoPago: values.metodoPago,
       requiereFactura: values.requiereFactura,
       conceptoPago: tipoPago === "Parcial" ? conceptoAbono : undefined,
+      notas: values.notas,
     });
 
     if (showNewCargo) {
@@ -352,6 +356,9 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
               </option>
             ))}
           </Select>
+        </Field>
+        <Field label="Observaciones" htmlFor="notas" error={errors.notas?.message}>
+          <Textarea id="notas" {...register("notas")} />
         </Field>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
           <Checkbox {...register("requiereFactura")} />

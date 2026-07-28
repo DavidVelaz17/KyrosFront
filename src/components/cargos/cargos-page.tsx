@@ -43,7 +43,11 @@ export function CargosPage() {
         nombreCompleto.toLowerCase().includes(term) ||
         cargo.estudiante.matricula.toLowerCase().includes(term);
       const matchesGrupo = !grupoId || String(cargo.estudiante.grupo?.idGrupo ?? "") === grupoId;
-      const matchesIngresoA = !ingresoA || (INGRESO_A_FROM_BACKEND[cargo.estudiante.ingresoA] ?? cargo.estudiante.ingresoA) === ingresoA;
+      const matchesIngresoA =
+        !ingresoA ||
+        (cargo.estudiante.ingresoA
+          ? (INGRESO_A_FROM_BACKEND[cargo.estudiante.ingresoA] ?? cargo.estudiante.ingresoA)
+          : undefined) === ingresoA;
       const matchesEstado = !estado || cargoFilterStatus(cargo.estatusCargo, cargo.fechaVencimientoCargo) === estado;
       return matchesSearch && matchesGrupo && matchesIngresoA && matchesEstado;
     });
