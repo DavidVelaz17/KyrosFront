@@ -51,8 +51,9 @@ export interface Payment {
   usuarioNombre: string;
   /** Si el alumno/tutor pidió factura por este pago. Se captura al registrar el pago. */
   requiereFactura: boolean;
-  /** IngresoA del alumno al momento de consultar (no del pago en sí); útil para filtrar reportes. */
-  ingresoA: IngresoA;
+  /** IngresoA del alumno al momento de consultar (no del pago en sí); útil para filtrar reportes.
+   *  "Ingresa a" es opcional en el alumno, así que puede no haber ninguno. */
+  ingresoA?: IngresoA;
 }
 
 // Los campos derivados (studentNombre, matricula, grupoNombre, idCargo, estatusCargo,

@@ -26,12 +26,13 @@ interface PagoDto {
   cargo: CargoDto;
   usuario: PagoUsuarioRef | null;
   requiereFactura: boolean;
+  /** Concepto propio de este pago (p.ej. "Abono a inscripción"). Si es null, el recibo usa
+   *  el concepto del cargo (dto.cargo.conceptoCargo). */
+  conceptoPago: string | null;
+  /** Observaciones capturadas al registrar el pago (se muestran en el recibo). */
+  notasPago: string | null;
 }
 
-/**
- * El backend no tiene un campo de notas/observaciones en Cargo ni en Pago, así que
- * las notas capturadas en el modal de pago no se persisten todavía (se pierden al recargar).
- */
 function toPayment(dto: PagoDto): Payment {
   return {
     id: String(dto.idPago),
@@ -40,18 +41,20 @@ function toPayment(dto: PagoDto): Payment {
     matricula: dto.cargo.estudiante.matricula,
     grupoId: dto.cargo.estudiante.grupo ? String(dto.cargo.estudiante.grupo.idGrupo) : "",
     grupoNombre: dto.cargo.estudiante.grupo?.nombreGrupo ?? "Sin grupo",
-    concepto: (dto.cargo.conceptoCargo ?? "Otro") as PaymentConcept,
+    // El concepto propio del pago (ej. "Abono a inscripción" en un pago parcial) tiene prioridad
+    // sobre el concepto del cargo: así el recibo de un abono no muestra el concepto del cargo completo.
+    concepto: (dto.conceptoPago || dto.cargo.conceptoCargo || "Otro") as PaymentConcept,
     tipoMensualidad: TIPO_MENSUALIDAD_FROM_BACKEND[dto.cargo.tipoMensualidadCargo] ?? "Pago completo",
     monto: dto.montoPagadoPago,
     metodoPago: METODO_PAGO_FROM_BACKEND[dto.metodoPago] ?? "Efectivo",
     fecha: dto.fechaPago,
-    notas: "",
+    notas: dto.notasPago ?? "",
     idCargo: String(dto.cargo.idCargo),
     estatusCargo: dto.cargo.estatusCargo as EstatusCargo,
     fechaVencimientoCargo: dto.cargo.fechaVencimientoCargo,
     usuarioNombre: dto.usuario?.nombreUsuario ?? "—",
     requiereFactura: dto.requiereFactura,
-    ingresoA: INGRESO_A_FROM_BACKEND[dto.cargo.estudiante.ingresoA] ?? "Universidad",
+    ingresoA: dto.cargo.estudiante.ingresoA ? INGRESO_A_FROM_BACKEND[dto.cargo.estudiante.ingresoA] : undefined,
   };
 }
 
@@ -104,6 +107,7 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
       idCargo: cargo.idCargo,
       idUsuario: session.idUsuario,
       requiereFactura: input.requiereFactura,
+      notasPago: input.notas || null,
     }),
   });
 
@@ -116,6 +120,11 @@ interface CreatePagoForCargoInput {
   fechaPago: string;
   metodoPago: PaymentMethod;
   requiereFactura: boolean;
+  /** Concepto propio de este pago (ej. abono parcial); si no se manda, el recibo cae al
+   *  concepto del cargo. */
+  conceptoPago?: string;
+  /** Observaciones capturadas al registrar el pago (se muestran en el recibo). */
+  notas?: string;
 }
 
 /** Registra un pago sobre un cargo ya existente, sin crear uno nuevo (acción rápida "Nuevo pago"). */
@@ -134,6 +143,8 @@ export async function createPagoForCargo(input: CreatePagoForCargoInput): Promis
       idCargo: input.idCargo,
       idUsuario: session.idUsuario,
       requiereFactura: input.requiereFactura,
+      conceptoPago: input.conceptoPago || null,
+      notasPago: input.notas || null,
     }),
   });
 

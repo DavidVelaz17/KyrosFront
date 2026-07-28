@@ -7,6 +7,7 @@ import {
   Calendar,
   ChevronDown,
   CreditCard,
+  FileSpreadsheet,
   GraduationCap,
   IdCard,
   Library,
@@ -36,6 +37,12 @@ const NAV_LINKS: { href: string; label: string; icon: typeof IdCard; visible?: (
   { href: "/dashboard/catalogos", label: "Catálogos", icon: Library, visible: isAdminOrCoordinador },
   { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, visible: isAdmin },
   { href: "/dashboard/logs", label: "Logs", icon: ScrollText, visible: isAdmin },
+  {
+    href: "/dashboard/importar-exportar",
+    label: "Importar/Exportar",
+    icon: FileSpreadsheet,
+    visible: isAdminOrCoordinador,
+  },
 ];
 
 export function Sidebar({

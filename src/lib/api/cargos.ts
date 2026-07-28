@@ -9,7 +9,7 @@ export interface CargoEstudianteRef {
   nombre: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
-  ingresoA: string;
+  ingresoA: string | null;
   grupo: { idGrupo: number; nombreGrupo: string } | null;
 }
 

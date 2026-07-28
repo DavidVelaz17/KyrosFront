@@ -65,6 +65,34 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return (await response.json()) as T;
 }
 
+/** Como apiFetch, pero para respuestas binarias (ej. un .xlsx generado) en vez de JSON: el
+ *  caller se encarga de convertir el ArrayBuffer a Blob y disparar la descarga en el navegador. */
+export async function apiFetchBlob(path: string, init: RequestInit = {}): Promise<ArrayBuffer> {
+  const session = await getSession();
+  const baseUrl = process.env.BACKEND_API_URL;
+
+  if (!baseUrl) {
+    throw new Error("BACKEND_API_URL no está configurada.");
+  }
+
+  const headers = new Headers(init.headers);
+  if (session?.token) {
+    headers.set("Authorization", `Bearer ${session.token}`);
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw await parseErrorBody(response);
+  }
+
+  return response.arrayBuffer();
+}
+
 /** Como apiFetch, pero para `multipart/form-data`: no fuerza Content-Type (fetch pone el boundary). */
 export async function apiFetchMultipart<T>(path: string, formData: FormData): Promise<T> {
   const session = await getSession();

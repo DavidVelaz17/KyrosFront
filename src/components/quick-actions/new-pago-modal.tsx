@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
@@ -38,6 +39,7 @@ const NewPagoSchema = z.object({
   fechaPago: z.string().min(1, "La fecha es requerida"),
   metodoPago: z.enum(PAYMENT_METHOD_OPTIONS),
   requiereFactura: z.boolean(),
+  notas: z.string().optional(),
 });
 
 type NewPagoFormInput = z.input<typeof NewPagoSchema>;
@@ -48,6 +50,7 @@ const DEFAULT_VALUES: NewPagoFormInput = {
   fechaPago: todayISODate(),
   metodoPago: "Efectivo",
   requiereFactura: false,
+  notas: "",
 };
 
 interface NewPagoModalProps {
@@ -65,6 +68,9 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
   const [selectedCargo, setSelectedCargo] = useState<PendingCargo | null>(null);
   const [cargoError, setCargoError] = useState<string | undefined>(undefined);
   const [tipoPago, setTipoPago] = useState<TipoPago>("Completo");
+  // Concepto propio de este abono (distinto del concepto del cargo): el recibo de un pago
+  // parcial debe mostrar este texto y no el concepto del cargo completo.
+  const [conceptoAbono, setConceptoAbono] = useState("");
   const [showNewCargo, setShowNewCargo] = useState(false);
   const [newCargoValues, setNewCargoValues] = useState<NewCargoSectionValues>(EMPTY_NEW_CARGO_SECTION);
   const [newCargoErrors, setNewCargoErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
@@ -92,6 +98,7 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       setSelectedCargo(null);
       setCargoError(undefined);
       setTipoPago("Completo");
+      setConceptoAbono("");
       setShowNewCargo(false);
       setNewCargoValues(EMPTY_NEW_CARGO_SECTION);
       setNewCargoErrors(undefined);
@@ -130,8 +137,9 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
 
   function handleSelectTipoPago(tipo: TipoPago) {
     setTipoPago(tipo);
-    if (tipo === "Completo" && selectedCargo) {
-      setValue("montoPagadoPago", String(selectedCargo.montoRestante));
+    if (tipo === "Completo") {
+      setConceptoAbono("");
+      if (selectedCargo) setValue("montoPagadoPago", String(selectedCargo.montoRestante));
     }
   }
 
@@ -171,6 +179,8 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       fechaPago: values.fechaPago,
       metodoPago: values.metodoPago,
       requiereFactura: values.requiereFactura,
+      conceptoPago: tipoPago === "Parcial" ? conceptoAbono : undefined,
+      notas: values.notas,
     });
 
     if (showNewCargo) {
@@ -297,6 +307,17 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
                           : "El cargo quedará en PARCIAL y su monto restante bajará por lo que se pague aquí."}
                       </p>
                     </div>
+
+                    {tipoPago === "Parcial" && (
+                      <Field label="Concepto del abono" htmlFor="conceptoAbono">
+                        <Input
+                          id="conceptoAbono"
+                          placeholder="Ej. Abono a colegiatura"
+                          value={conceptoAbono}
+                          onChange={(event) => setConceptoAbono(event.target.value)}
+                        />
+                      </Field>
+                    )}
                   </>
                 )}
               </>
@@ -335,6 +356,9 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
               </option>
             ))}
           </Select>
+        </Field>
+        <Field label="Observaciones" htmlFor="notas" error={errors.notas?.message}>
+          <Textarea id="notas" {...register("notas")} />
         </Field>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
           <Checkbox {...register("requiereFactura")} />

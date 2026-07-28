@@ -23,9 +23,9 @@ async function fetchProximoPago(studentId: string): Promise<string | undefined> 
   return pendientes[0]?.fechaVencimientoCargo;
 }
 
-/** Recibo de un solo pago, pensado para imprimirse en media cuartilla (carta apaisada, mitad de
- *  alto: ver @page en el <style> de abajo). Se abre en su propia pestaña (fuera de /dashboard,
- *  igual que ReportePagosPage) y dispara window.print() sola al terminar de cargar. */
+/** Recibo de un solo pago. Se imprime en hoja carta completa (tamaños de página personalizados
+ *  no son confiables entre impresoras: muchas los ignoran o los estiran para llenar la hoja que
+ *  tengan cargada), pero el contenido queda compacto en la parte de arriba para poder recortarlo. */
 export function ReciboPagoPage() {
   const searchParams = useSearchParams();
   const paymentId = searchParams.get("paymentId") ?? "";
@@ -77,7 +77,7 @@ export function ReciboPagoPage() {
   return (
     <div className="flex min-h-screen flex-col items-center bg-zinc-100 p-6 print:min-h-0 print:bg-white print:p-0">
       <style>{`
-        @page { size: 8.5in 5.5in; margin: 0.3in; }
+        @page { size: 8.5in 11in; margin: 0.5in; }
         @media print {
           html, body { background: #fff; }
         }
@@ -94,7 +94,7 @@ export function ReciboPagoPage() {
         </button>
       </div>
 
-      <div className="flex w-[7.9in] flex-col border border-zinc-900 bg-white p-4 text-zinc-900 print:w-full print:border-2">
+      <div className="flex w-[7in] flex-col bg-white p-4 text-zinc-900 print:w-full">
         <div className="flex items-start justify-between">
           <KayrosLogo />
           <p className="text-sm">
@@ -134,7 +134,7 @@ export function ReciboPagoPage() {
             <div className="mt-2 flex items-end justify-between gap-4">
               <div>
                 <p className="font-medium">Observaciones:</p>
-                <p>{payment.ingresoA}</p>
+                <p>{payment.notas || "—"}</p>
               </div>
 
               <div className="flex flex-col items-center text-xs">

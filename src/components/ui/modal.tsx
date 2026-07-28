@@ -42,10 +42,9 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      onCancel={onClose}
-      onClick={(event) => {
-        if (event.target === dialogRef.current) onClose();
-      }}
+      // Evita que Escape cierre el modal (perdería lo que el usuario esté llenando): sin
+      // preventDefault, el evento "cancel" nativo del <dialog> lo cierra por su cuenta.
+      onCancel={(event) => event.preventDefault()}
       className={cn(
         // Closed <dialog> elements are hidden by the browser via `dialog:not([open]) { display: none }`,
         // a UA-stylesheet rule. An unconditional `display` utility here (e.g. `block`) is an author style,
@@ -73,14 +72,19 @@ export function Modal({ open, onClose, title, description, children, footer, siz
           <h2 className="text-base font-semibold">{title}</h2>
           {description && <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
-          aria-label="Cerrar"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {/* Sin footer no hay botón Cancelar (modales de solo lectura, p.ej. "Detalles"): la X
+         *  sigue siendo su única forma de cerrarse. Cuando sí hay footer, se quita para que la
+         *  única forma de cerrar sea su botón Cancelar y no se pierda información a medio llenar. */}
+        {!footer && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
       <div className="px-5 py-4">{children}</div>
       {footer && (

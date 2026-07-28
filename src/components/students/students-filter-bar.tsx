@@ -2,15 +2,23 @@
 
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { ColumnVisibilityMenu } from "@/components/students/column-visibility-menu";
+import { StudentsFilterPanel } from "@/components/students/students-filter-panel";
+import type { StudentFilters } from "@/lib/types/student-filters";
+
+interface GroupOption {
+  id: string;
+  nombre: string;
+}
 
 interface StudentsFilterBarProps {
   search: string;
   onSearchChange: (value: string) => void;
-  universidad: string;
-  onUniversidadChange: (value: string) => void;
+  filters: StudentFilters;
+  onFiltersChange: (patch: Partial<StudentFilters>) => void;
+  onClearFilters: () => void;
   universidadOptions: string[];
+  groupOptions?: GroupOption[];
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (visibility: Record<string, boolean>) => void;
 }
@@ -18,9 +26,11 @@ interface StudentsFilterBarProps {
 export function StudentsFilterBar({
   search,
   onSearchChange,
-  universidad,
-  onUniversidadChange,
+  filters,
+  onFiltersChange,
+  onClearFilters,
   universidadOptions,
+  groupOptions,
   columnVisibility,
   onColumnVisibilityChange,
 }: StudentsFilterBarProps) {
@@ -36,16 +46,13 @@ export function StudentsFilterBar({
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </div>
-        <div className="sm:w-56">
-          <Select value={universidad} onChange={(event) => onUniversidadChange(event.target.value)}>
-            <option value="">Todas las universidades</option>
-            {universidadOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <StudentsFilterPanel
+          filters={filters}
+          onChange={onFiltersChange}
+          onClear={onClearFilters}
+          universidadOptions={universidadOptions}
+          groupOptions={groupOptions}
+        />
       </div>
       <ColumnVisibilityMenu visibility={columnVisibility} onChange={onColumnVisibilityChange} />
     </div>

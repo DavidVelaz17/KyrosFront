@@ -37,22 +37,22 @@ export type EstatusEstudiante = (typeof ESTATUS_ESTUDIANTE_OPTIONS)[number];
 export interface Student {
   id: string;
   matricula: string;
-  ingresoA: IngresoA;
+  ingresoA?: IngresoA;
   nombre: string;
   apellidoPaterno: string;
   apellidoMaterno: string;
-  edad: number;
-  telefono: string;
-  escuelaProcedencia: string;
-  gradoEscolar: string;
+  edad?: number;
+  telefono?: string;
+  escuelaProcedencia?: string;
+  gradoEscolar?: string;
   tutorNombre: string;
   tutorTelefono: string;
-  direccion: string;
+  direccion?: string;
   fotoUrl: string | null;
   notas: string;
-  fechaInscripcion: string;
+  fechaInscripcion?: string;
   grupoId: string;
-  horario: Horario;
+  horario?: Horario;
   estatus: EstatusEstudiante;
 }
 

@@ -84,7 +84,10 @@ export function buildCargoColumns(): ColumnDef<CargoDto>[] {
     {
       id: "ingresoA",
       header: "INGRESO A",
-      accessorFn: (row) => INGRESO_A_FROM_BACKEND[row.estudiante.ingresoA] ?? row.estudiante.ingresoA,
+      accessorFn: (row) =>
+        row.estudiante.ingresoA
+          ? (INGRESO_A_FROM_BACKEND[row.estudiante.ingresoA] ?? row.estudiante.ingresoA)
+          : "Sin especificar",
       enableSorting: false,
       cell: ({ getValue }) => <Badge tone="indigo">{getValue<string>()}</Badge>,
     },
