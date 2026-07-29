@@ -152,7 +152,6 @@ export function ReciboPagoPage() {
         </div>
 
         <div className="mt-3 text-center text-xs">
-          <p>Obtén un descuento en tu próxima mensualidad si se inscribe un recomendado tuyo!!!!</p>
           <p className="mt-1 text-lg" style={{ fontFamily: "cursive" }}>
             Aquí comienza tu Universidad!!
           </p>
