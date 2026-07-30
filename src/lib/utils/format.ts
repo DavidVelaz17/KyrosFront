@@ -29,6 +29,7 @@ export function formatDateTime(iso: string): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Mexico_City",
   }).format(date);
 }
 
