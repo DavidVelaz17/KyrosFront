@@ -217,8 +217,8 @@ interface StudentFormModalProps {
   defaultGroupId: string;
   onCreated: (input: CreateStudentInput & { id: string }) => void;
   /** Si se indica, el modal abre directo en modo edición para este alumno: sin buscador (ya
-   *  sabemos cuál es), sin sección de Pago/Nuevo cargo, y con "Ingresa a" bloqueado a su valor
-   *  actual (el resto de sus datos, incluido el grupo, sí es libremente editable). */
+   *  sabemos cuál es) y sin sección de Pago/Nuevo cargo. El resto de sus datos, incluidos el
+   *  grupo y "Ingresa a", son libremente editables. */
   editStudent?: Student | null;
 }
 
@@ -856,16 +856,12 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
         </Field>
 
         <div className="flex flex-col gap-3 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Ingresa a
-            {editStudent && <span className="ml-2 text-xs font-normal text-zinc-400">(no se puede cambiar al editar)</span>}
-          </h3>
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ingresa a</h3>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {INGRESO_A_OPTIONS.map((option) => (
               <button
                 key={option}
                 type="button"
-                disabled={Boolean(editStudent)}
                 onClick={() =>
                   setValue("ingresoA", ingresoA === option ? undefined : option, { shouldValidate: true })
                 }
@@ -873,8 +869,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
                   "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
                   ingresoA === option
                     ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-300"
-                    : "border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
-                  editStudent && "cursor-not-allowed opacity-60 hover:bg-transparent dark:hover:bg-transparent"
+                    : "border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 )}
               >
                 {option}
