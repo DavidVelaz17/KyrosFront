@@ -6,11 +6,13 @@ import { exportStudentsExcel } from "@/lib/api/students";
 import { ImportStudentsModal } from "@/components/students/import-students-modal";
 import { Button } from "@/components/ui/button";
 import { downloadXlsx } from "@/lib/utils/download";
+import { useGroups } from "@/components/groups/groups-provider";
 
 /** Carga y descarga masiva de alumnos vía Excel. Sección aparte del listado de "Alumnos": es una
  *  operación de datos completa (afecta a todos los alumnos y su información relacionada), no una
  *  acción puntual sobre un alumno en particular. */
 export function ImportExportPage() {
+  const { groups } = useGroups();
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
 
@@ -40,7 +42,8 @@ export function ImportExportPage() {
             <h2 className="font-medium text-zinc-900 dark:text-zinc-100">Importar alumnos</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
               Da de alta varios alumnos a la vez desde un archivo .xlsx. La matrícula se genera
-              sola; el grupo y el destino se asignan después, desde el listado de Alumnos.
+              sola; puedes elegir el grupo al importar, o asignarlo después desde el listado de
+              Alumnos. El destino siempre se asigna después.
             </p>
           </div>
           <Button type="button" onClick={() => setImportModalOpen(true)} className="self-start">
@@ -64,7 +67,7 @@ export function ImportExportPage() {
         </div>
       </div>
 
-      <ImportStudentsModal open={importModalOpen} onClose={() => setImportModalOpen(false)} />
+      <ImportStudentsModal open={importModalOpen} onClose={() => setImportModalOpen(false)} groups={groups} />
     </div>
   );
 }

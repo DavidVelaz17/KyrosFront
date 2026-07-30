@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import type { Group } from "@/lib/types/group";
 import {
   downloadStudentsTemplate,
   importStudentsExcel,
@@ -16,16 +18,20 @@ import { downloadXlsx } from "@/lib/utils/download";
 interface ImportStudentsModalProps {
   open: boolean;
   onClose: () => void;
+  groups: Group[];
   /** Se llama tras un import con al menos un alumno creado, ej. para refrescar una lista visible
    *  en la misma pantalla. Opcional: no todo lugar que abre este modal tiene una lista que refrescar. */
   onImported?: () => void;
 }
 
-/** Carga masiva de alumnos desde un .xlsx: solo trae datos propios del alumno (sin grupo ni
- *  destino, eso se asigna después) y nunca pide matrícula — se autogenera igual que en el alta
- *  manual. Una fila inválida no aborta el lote: se reporta como error y el resto sí se importa. */
-export function ImportStudentsModal({ open, onClose, onImported }: ImportStudentsModalProps) {
+/** Carga masiva de alumnos desde un .xlsx: solo trae datos propios del alumno (el destino se
+ *  asigna después) y nunca pide matrícula — se autogenera igual que en el alta manual. El grupo
+ *  es opcional: si se elige uno, todos los alumnos del archivo quedan asignados a él; si se deja
+ *  "Sin grupo", se asignan después desde el listado de Alumnos. Una fila inválida no aborta el
+ *  lote: se reporta como error y el resto sí se importa. */
+export function ImportStudentsModal({ open, onClose, groups, onImported }: ImportStudentsModalProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [groupId, setGroupId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [result, setResult] = useState<ImportStudentsResult | null>(null);
@@ -33,6 +39,7 @@ export function ImportStudentsModal({ open, onClose, onImported }: ImportStudent
 
   function handleClose() {
     setFile(null);
+    setGroupId("");
     setSubmitting(false);
     setResult(null);
     setError(undefined);
@@ -60,6 +67,7 @@ export function ImportStudentsModal({ open, onClose, onImported }: ImportStudent
     try {
       const formData = new FormData();
       formData.set("file", file);
+      if (groupId) formData.set("idGrupo", groupId);
       const data = await importStudentsExcel(formData);
       setResult(data);
       if (data.exitosos > 0) {
@@ -95,6 +103,20 @@ export function ImportStudentsModal({ open, onClose, onImported }: ImportStudent
           <Download className="h-4 w-4" />
           {downloadingTemplate ? "Descargando..." : "Descargar plantilla"}
         </Button>
+
+        <Field label="Grupo" htmlFor="import-grupo">
+          <Select id="import-grupo" value={groupId} onChange={(event) => setGroupId(event.target.value)}>
+            <option value="">Sin grupo</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.nombre}
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+            Si eliges un grupo, todos los alumnos del archivo quedarán asignados a él.
+          </p>
+        </Field>
 
         <Field label="Archivo (.xlsx)" htmlFor="import-file" error={error} required>
           <input
