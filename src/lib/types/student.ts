@@ -54,6 +54,8 @@ export interface Student {
   grupoId: string;
   horario?: Horario;
   estatus: EstatusEstudiante;
+  /** Solo aplica cuando ingresoA es "Universidad": si el alumno lleva inglés. */
+  llevaIngles: boolean;
 }
 
 // El estatus no se asigna a mano al crear/editar: nace en "Activo" y solo cambia vía la

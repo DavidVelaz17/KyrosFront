@@ -48,6 +48,7 @@ interface EstudianteDto {
   ingresoA: string | null;
   grupo: GrupoRefDto | null;
   estatus: string;
+  llevaIngles: boolean;
 }
 
 /** El backend guarda solo el path (`/uploads/xxx.ext`). En dev local, frontend y backend viven en
@@ -85,6 +86,7 @@ function toStudent(dto: EstudianteDto): Student {
     grupoId: dto.grupo ? String(dto.grupo.idGrupo) : "",
     horario: dto.horario ? HORARIO_FROM_BACKEND[dto.horario] : undefined,
     estatus: ESTATUS_FROM_BACKEND[dto.estatus] ?? "Activo",
+    llevaIngles: dto.llevaIngles,
   };
 }
 
@@ -107,6 +109,7 @@ function toForm(input: CreateStudentInput) {
     horario: input.horario ? HORARIO_TO_BACKEND[input.horario] : null,
     ingresoA: input.ingresoA ? INGRESO_A_TO_BACKEND[input.ingresoA] : null,
     idGrupo: input.grupoId ? Number(input.grupoId) : null,
+    llevaIngles: input.llevaIngles,
   };
 }
 
