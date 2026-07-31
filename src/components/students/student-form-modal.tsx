@@ -145,6 +145,8 @@ const CreateStudentSchema = z
     metodoPago: z.enum(PAYMENT_METHOD_OPTIONS).optional(),
     fechaPago: z.string().optional(),
     requiereFactura: z.boolean().optional(),
+    // Solo aplica cuando ingresoA es "Universidad" (ver checkbox junto a UniversidadDestinoField).
+    llevaIngles: z.boolean().optional(),
   })
   .superRefine((values, ctx) => {
     if (values.ingresoA && values.ingresoA !== "Asesorías" && values.ingresoA !== "Universidad" && !values.idDestino) {
@@ -181,6 +183,7 @@ function buildDefaultValues(grupoId: string): CreateStudentFormInput {
     metodoPago: "Efectivo",
     fechaPago: todayISODate(),
     requiereFactura: false,
+    llevaIngles: false,
   };
 }
 
@@ -207,6 +210,7 @@ function buildEditValues(student: Student, grupoId: string): CreateStudentFormIn
     metodoPago: "Efectivo",
     fechaPago: todayISODate(),
     requiereFactura: false,
+    llevaIngles: student.llevaIngles,
   };
 }
 
@@ -549,6 +553,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       grupoId: values.grupoId ?? "",
       horario: values.horario,
       fotoUrl: null,
+      llevaIngles: values.ingresoA === "Universidad" ? (values.llevaIngles ?? false) : false,
     };
 
     let student: Student;
@@ -886,12 +891,18 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
               error={asesoriaError}
             />
           ) : ingresoA === "Universidad" ? (
-            <UniversidadDestinoField
-              universidades={universidades}
-              slots={universidadSlots}
-              onChange={setUniversidadSlots}
-              error={universidadError}
-            />
+            <>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <Checkbox {...register("llevaIngles")} />
+                ¿Lleva inglés?
+              </label>
+              <UniversidadDestinoField
+                universidades={universidades}
+                slots={universidadSlots}
+                onChange={setUniversidadSlots}
+                error={universidadError}
+              />
+            </>
           ) : ingresoA ? (
             <Field label={DESTINO_LABELS[ingresoA]} htmlFor="idDestino" error={errors.idDestino?.message} required>
               {loadingDestinos ? (
