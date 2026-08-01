@@ -5,10 +5,13 @@ import { Printer, Wallet } from "lucide-react";
 import { listPayments } from "@/lib/api/payments";
 import type { Payment } from "@/lib/types/payment";
 import { useGroups } from "@/components/groups/groups-provider";
+import { useSessionUser } from "@/components/auth/session-provider";
+import { isAdmin } from "@/lib/types/auth";
 import { PagosFilterBar } from "@/components/pagos/pagos-filter-bar";
 import { PagosTable } from "@/components/pagos/pagos-table";
 import { buildPagoColumns } from "@/components/pagos/pago-columns";
 import { GenerarReporteModal } from "@/components/pagos/generar-reporte-modal";
+import { DeletePaymentModal } from "@/components/pagos/delete-payment-modal";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -18,11 +21,14 @@ import { formatCurrency } from "@/lib/utils/format";
 
 export function PagosPage() {
   const { groups } = useGroups();
+  const sessionUser = useSessionUser();
+  const canDelete = isAdmin(sessionUser.rol);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [reporteOpen, setReporteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Payment | null>(null);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:pagos",
     PAGO_COLUMN_DEFAULT_VISIBILITY
@@ -44,7 +50,10 @@ export function PagosPage() {
     });
   }, [payments, search, grupoId]);
 
-  const columns = useMemo(() => buildPagoColumns(), []);
+  const columns = useMemo(
+    () => buildPagoColumns({ isAdmin: canDelete, onDelete: setDeleteTarget }),
+    [canDelete]
+  );
   const total = filteredPayments.reduce((sum, payment) => sum + payment.monto, 0);
 
   if (loading) {
@@ -92,6 +101,13 @@ export function PagosPage() {
       )}
 
       <GenerarReporteModal open={reporteOpen} onClose={() => setReporteOpen(false)} />
+
+      <DeletePaymentModal
+        open={deleteTarget !== null}
+        payment={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={(paymentId) => setPayments((current) => current.filter((payment) => payment.id !== paymentId))}
+      />
     </div>
   );
 }

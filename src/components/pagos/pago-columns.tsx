@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingFn } from "@tanstack/react-table";
-import { Printer } from "lucide-react";
+import { Printer, Trash2 } from "lucide-react";
 import type { Payment } from "@/lib/types/payment";
 import { ESTATUS_CARGO_DESCRIPTIONS } from "@/lib/types/payment";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,14 @@ import { cargoBadgeTone, displayEstatusCargo } from "@/lib/utils/cargo";
 const localeTextSort: SortingFn<Payment> = (rowA, rowB, columnId) =>
   String(rowA.getValue(columnId)).localeCompare(String(rowB.getValue(columnId)), "es", { sensitivity: "base" });
 
-export function buildPagoColumns(): ColumnDef<Payment>[] {
+interface BuildPagoColumnsOptions {
+  /** Solo ADMIN puede borrar pagos: sin esto (o sin onDelete) la columna de acciones no muestra
+   *  el botón de eliminar, igual que el resto de acciones exclusivas de ADMIN en la app. */
+  isAdmin?: boolean;
+  onDelete?: (payment: Payment) => void;
+}
+
+export function buildPagoColumns({ isAdmin, onDelete }: BuildPagoColumnsOptions = {}): ColumnDef<Payment>[] {
   return [
     {
       id: "fecha",
@@ -101,16 +108,29 @@ export function buildPagoColumns(): ColumnDef<Payment>[] {
       enableHiding: false,
       enableSorting: false,
       cell: ({ row }) => (
-        <a
-          href={`/reportes/recibo?paymentId=${row.original.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          title="Imprimir recibo"
-          aria-label="Imprimir recibo"
-        >
-          <Printer className="h-4 w-4" />
-        </a>
+        <div className="flex items-center gap-1">
+          <a
+            href={`/reportes/recibo?paymentId=${row.original.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="Imprimir recibo"
+            aria-label="Imprimir recibo"
+          >
+            <Printer className="h-4 w-4" />
+          </a>
+          {isAdmin && onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(row.original)}
+              className="inline-flex items-center gap-1 rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+              title="Eliminar pago"
+              aria-label="Eliminar pago"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       ),
     },
   ];

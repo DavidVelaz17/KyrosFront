@@ -5,9 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
 import { listPayments } from "@/lib/api/payments";
 import { listAllStudents } from "@/lib/api/students";
+import { listUsuarios } from "@/lib/api/usuarios";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
+import type { Usuario } from "@/lib/types/usuario";
 import { useStudentUniversidades } from "@/hooks/use-student-universidades";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils/format";
@@ -19,13 +21,15 @@ export function ReportePagosPage() {
   const searchParams = useSearchParams();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const hasPrintedRef = useRef(false);
 
   useEffect(() => {
-    Promise.all([listPayments(), listAllStudents()]).then(([paymentsData, studentsData]) => {
+    Promise.all([listPayments(), listAllStudents(), listUsuarios()]).then(([paymentsData, studentsData, usuariosData]) => {
       setPayments(paymentsData);
       setStudents(studentsData);
+      setUsuarios(usuariosData);
       setLoading(false);
     });
   }, []);
@@ -35,6 +39,7 @@ export function ReportePagosPage() {
   const studentId = searchParams.get("studentId") ?? "";
   const universidad = searchParams.get("universidad") ?? "";
   const ingresoA = searchParams.get("ingresoA") ?? "";
+  const usuarioId = searchParams.get("usuarioId") ?? "";
   const dia = searchParams.get("dia") ?? "";
   const mes = searchParams.get("mes") ?? "";
   const desde = searchParams.get("desde") ?? "";
@@ -46,6 +51,7 @@ export function ReportePagosPage() {
         if (studentId && payment.studentId !== studentId) return false;
         if (ingresoA && payment.ingresoA !== ingresoA) return false;
         if (universidad && !(universidadMap[payment.studentId] ?? []).includes(universidad)) return false;
+        if (usuarioId && payment.usuarioId !== usuarioId) return false;
         if (dia && payment.fecha !== dia) return false;
         if (mes && !payment.fecha.startsWith(mes)) return false;
         if (desde && payment.fecha < desde) return false;
@@ -53,7 +59,7 @@ export function ReportePagosPage() {
         return true;
       })
       .sort((a, b) => b.fecha.localeCompare(a.fecha));
-  }, [payments, universidadMap, studentId, ingresoA, universidad, dia, mes, desde, hasta]);
+  }, [payments, universidadMap, studentId, ingresoA, universidad, usuarioId, dia, mes, desde, hasta]);
 
   const total = filtered.reduce((sum, payment) => sum + payment.monto, 0);
 
@@ -79,6 +85,10 @@ export function ReportePagosPage() {
   }
   if (universidad) filterDescriptions.push(`Universidad: ${universidad}`);
   if (ingresoA) filterDescriptions.push(`Ingresa a: ${ingresoA}`);
+  if (usuarioId) {
+    const usuario = usuarios.find((candidate) => candidate.id === usuarioId);
+    if (usuario) filterDescriptions.push(`Cobrado por: ${usuario.nombreUsuario}`);
+  }
   if (dia) filterDescriptions.push(`Día: ${formatDate(dia)}`);
   if (mes) filterDescriptions.push(`Mes: ${mes}`);
   if (desde || hasta) filterDescriptions.push(`Rango: ${desde ? formatDate(desde) : "…"} a ${hasta ? formatDate(hasta) : "…"}`);
