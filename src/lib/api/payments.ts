@@ -53,6 +53,7 @@ function toPayment(dto: PagoDto): Payment {
     estatusCargo: dto.cargo.estatusCargo as EstatusCargo,
     fechaVencimientoCargo: dto.cargo.fechaVencimientoCargo,
     usuarioNombre: dto.usuario?.nombreUsuario ?? "—",
+    usuarioId: dto.usuario ? String(dto.usuario.idUsuario) : undefined,
     requiereFactura: dto.requiereFactura,
     ingresoA: dto.cargo.estudiante.ingresoA ? INGRESO_A_FROM_BACKEND[dto.cargo.estudiante.ingresoA] : undefined,
   };
@@ -112,6 +113,15 @@ export async function createPayment(input: CreatePaymentInput): Promise<Payment>
   });
 
   return toPayment(pagoDto);
+}
+
+/** Solo ADMIN (reforzado en el backend): borra un pago tras re-validar la contraseña del
+ *  usuario en sesión, la misma que ya trae la contraseña incorrecta como ApiError 401. */
+export async function deletePayment(id: string, password: string): Promise<void> {
+  await apiFetch<void>(`/api/pagos/${id}`, {
+    method: "DELETE",
+    body: JSON.stringify({ password }),
+  });
 }
 
 interface CreatePagoForCargoInput {

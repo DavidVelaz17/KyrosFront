@@ -101,6 +101,18 @@ export function buildStudentColumns({
       ),
     },
     {
+      id: "ingles",
+      header: "INGLÉS",
+      accessorKey: "llevaIngles",
+      enableSorting: false,
+      cell: ({ row }) =>
+        row.original.ingresoA === "Universidad" ? (
+          <Badge tone={row.original.llevaIngles ? "amber" : "neutral"}>{row.original.llevaIngles ? "Sí" : "No"}</Badge>
+        ) : (
+          <span className="text-sm text-zinc-400">No aplica</span>
+        ),
+    },
+    {
       id: "edad",
       header: "EDAD",
       accessorKey: "edad",

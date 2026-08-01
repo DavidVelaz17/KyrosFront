@@ -6,6 +6,8 @@ import type { Student } from "@/lib/types/student";
 import { INGRESO_A_OPTIONS } from "@/lib/types/student";
 import { listAllStudents } from "@/lib/api/students";
 import { listUniversidades, type DestinoOption } from "@/lib/api/destinos";
+import { listUsuarios } from "@/lib/api/usuarios";
+import type { Usuario } from "@/lib/types/usuario";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -28,9 +30,11 @@ interface GenerarReporteModalProps {
 export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps) {
   const [students, setStudents] = useState<Student[]>([]);
   const [universidades, setUniversidades] = useState<DestinoOption[]>([]);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [universidad, setUniversidad] = useState("");
   const [ingresoA, setIngresoA] = useState("");
+  const [usuarioId, setUsuarioId] = useState("");
   const [dateMode, setDateMode] = useState<DateMode>("Todos");
   const [dia, setDia] = useState(todayISODate());
   const [mes, setMes] = useState(todayISODate().slice(0, 7));
@@ -41,6 +45,7 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
     if (!open) return;
     listAllStudents().then(setStudents);
     listUniversidades().then(setUniversidades);
+    listUsuarios().then(setUsuarios);
   }, [open]);
 
   useEffect(() => {
@@ -49,6 +54,7 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
       setSelectedStudent(null);
       setUniversidad("");
       setIngresoA("");
+      setUsuarioId("");
       setDateMode("Todos");
     }
   }, [open]);
@@ -58,6 +64,7 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
     if (selectedStudent) params.set("studentId", selectedStudent.id);
     if (universidad) params.set("universidad", universidad);
     if (ingresoA) params.set("ingresoA", ingresoA);
+    if (usuarioId) params.set("usuarioId", usuarioId);
     if (dateMode === "Día") params.set("dia", dia);
     if (dateMode === "Mes") params.set("mes", mes);
     if (dateMode === "Rango") {
@@ -107,6 +114,16 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
               {INGRESO_A_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Cobrado por" htmlFor="reporte-usuario">
+            <Select id="reporte-usuario" value={usuarioId} onChange={(event) => setUsuarioId(event.target.value)}>
+              <option value="">Todos</option>
+              {usuarios.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.nombreUsuario}
                 </option>
               ))}
             </Select>

@@ -49,6 +49,8 @@ export interface Payment {
   fechaVencimientoCargo: string;
   /** Quién registró este pago. "—" en pagos creados antes de que se agregara este dato. */
   usuarioNombre: string;
+  /** Id de ese usuario, para filtrar (ej. reporte de pagos). Undefined junto con usuarioNombre "—". */
+  usuarioId?: string;
   /** Si el alumno/tutor pidió factura por este pago. Se captura al registrar el pago. */
   requiereFactura: boolean;
   /** IngresoA del alumno al momento de consultar (no del pago en sí); útil para filtrar reportes.
