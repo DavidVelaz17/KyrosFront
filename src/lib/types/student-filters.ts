@@ -5,6 +5,7 @@ export interface StudentFilters {
   estatus: string;
   ingresoA: string;
   horario: string;
+  llevaIngles: string;
   universidad: string;
   /** Vacío en la vista de un solo grupo (ahí no aplica: todos los alumnos ya son de ese grupo). */
   grupo: string;
@@ -25,6 +26,7 @@ export const EMPTY_STUDENT_FILTERS: StudentFilters = {
   estatus: "",
   ingresoA: "",
   horario: "",
+  llevaIngles: "",
   universidad: "",
   grupo: "",
   matricula: "",

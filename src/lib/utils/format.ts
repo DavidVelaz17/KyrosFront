@@ -40,8 +40,11 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/** "Hoy" en horario de México, sin importar en qué zona horaria corra el navegador o el
+ *  servidor (ver AGENTS.md/CLAUDE.md): toISOString() da la fecha en UTC, que ya es "mañana"
+ *  desde las 18:00 hora CDMX en adelante. */
 export function todayISODate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
 }
 
 export function initials(nombre: string, apellidoPaterno: string): string {

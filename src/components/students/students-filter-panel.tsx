@@ -80,6 +80,18 @@ export function StudentsFilterPanel({ filters, onChange, onClear, universidadOpt
             </Select>
           </Field>
 
+          <Field label="Lleva inglés" htmlFor="filtro-llevaIngles">
+            <Select
+              id="filtro-llevaIngles"
+              value={filters.llevaIngles}
+              onChange={(event) => onChange({ llevaIngles: event.target.value })}
+            >
+              <option value="">Todos</option>
+              <option value="si">Sí</option>
+              <option value="no">No</option>
+            </Select>
+          </Field>
+
           <Field label="Universidad" htmlFor="filtro-universidad">
             <Select id="filtro-universidad" value={filters.universidad} onChange={(event) => onChange({ universidad: event.target.value })}>
               <option value="">Todas</option>

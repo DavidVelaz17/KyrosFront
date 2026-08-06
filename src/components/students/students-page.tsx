@@ -176,6 +176,8 @@ export function StudentsPage({ group }: { group: Group }) {
             <span aria-hidden>·</span>
             <span>Inicio: {formatDate(currentGroup.fechaInicio)}</span>
             <span aria-hidden>·</span>
+            <span>{currentGroup.horario}</span>
+            <span aria-hidden>·</span>
             <span>
               {students.length} {students.length === 1 ? "alumno" : "alumnos"}
             </span>

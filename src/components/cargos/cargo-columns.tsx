@@ -1,6 +1,7 @@
 "use client";
 
 import type { ColumnDef, SortingFn } from "@tanstack/react-table";
+import { Trash2 } from "lucide-react";
 import type { CargoDto } from "@/lib/api/cargos";
 import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
 import type { EstatusCargo } from "@/lib/types/payment";
@@ -16,8 +17,15 @@ function alumnoNombre(cargo: CargoDto): string {
 const localeTextSort: SortingFn<CargoDto> = (rowA, rowB, columnId) =>
   String(rowA.getValue(columnId)).localeCompare(String(rowB.getValue(columnId)), "es", { sensitivity: "base" });
 
-export function buildCargoColumns(): ColumnDef<CargoDto>[] {
-  return [
+interface BuildCargoColumnsOptions {
+  /** Solo ADMIN puede borrar cargos: sin esto (o sin onDelete) la columna de acciones no se
+   *  agrega, igual que el resto de acciones exclusivas de ADMIN en la app (ver buildPagoColumns). */
+  isAdmin?: boolean;
+  onDelete?: (cargo: CargoDto) => void;
+}
+
+export function buildCargoColumns({ isAdmin, onDelete }: BuildCargoColumnsOptions = {}): ColumnDef<CargoDto>[] {
+  const columns: ColumnDef<CargoDto>[] = [
     {
       id: "alumno",
       header: "ALUMNO",
@@ -105,4 +113,26 @@ export function buildCargoColumns(): ColumnDef<CargoDto>[] {
       sortingFn: localeTextSort,
     },
   ];
+
+  if (isAdmin && onDelete) {
+    columns.push({
+      id: "acciones",
+      header: "ACCIONES",
+      enableHiding: false,
+      enableSorting: false,
+      cell: ({ row }) => (
+        <button
+          type="button"
+          onClick={() => onDelete(row.original)}
+          className="inline-flex items-center gap-1 rounded-md p-1.5 text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:text-zinc-400 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+          title="Eliminar cargo"
+          aria-label="Eliminar cargo"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      ),
+    });
+  }
+
+  return columns;
 }

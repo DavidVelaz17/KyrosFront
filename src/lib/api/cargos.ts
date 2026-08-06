@@ -74,6 +74,16 @@ export async function updateCargoEstatus(idCargo: number, estatusCargo: string):
   });
 }
 
+/** Solo ADMIN (reforzado en el backend): borra un cargo tras re-validar la contraseña del
+ *  usuario en sesión, igual que deletePayment. Si el cargo tiene pagos asociados, el backend
+ *  rechaza el borrado (fk_pago_cargo ON DELETE RESTRICT). */
+export async function deleteCargo(id: string, password: string): Promise<void> {
+  await apiFetch<void>(`/api/cargos/${id}`, {
+    method: "DELETE",
+    body: JSON.stringify({ password }),
+  });
+}
+
 interface CreateCargoStandaloneInput {
   idEstudiante: string;
   tipoMensualidadCargo: string;

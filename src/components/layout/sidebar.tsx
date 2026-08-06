@@ -23,6 +23,7 @@ import { useGroups } from "@/components/groups/groups-provider";
 import { GroupFormModal } from "@/components/groups/group-form-modal";
 import { Select } from "@/components/ui/select";
 import { CAMPUSES } from "@/lib/constants/campuses";
+import { HORARIO_OPTIONS } from "@/lib/types/student";
 import type { RolUsuario, SessionUser } from "@/lib/types/auth";
 import { canViewCargos, isAdmin, isAdminOrCoordinador } from "@/lib/types/auth";
 
@@ -59,10 +60,14 @@ export function Sidebar({
   const [groupsExpanded, setGroupsExpanded] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [plantelFilter, setPlantelFilter] = useState("");
+  const [horarioFilter, setHorarioFilter] = useState("");
 
   const isGruposActive = pathname.startsWith("/dashboard/grupos");
   const navLinks = NAV_LINKS.filter((link) => !link.visible || link.visible(user.rol));
-  const visibleGroups = plantelFilter ? groups.filter((group) => group.plantel === plantelFilter) : groups;
+  const visibleGroups = groups.filter(
+    (group) =>
+      (!plantelFilter || group.plantel === plantelFilter) && (!horarioFilter || group.horario === horarioFilter)
+  );
 
   return (
     <>
@@ -125,26 +130,41 @@ export function Sidebar({
             {groupsExpanded && (
               <div className="mt-1 flex flex-col gap-0.5 pl-4">
                 {groups.length > 0 && (
-                  <Select
-                    value={plantelFilter}
-                    onChange={(event) => setPlantelFilter(event.target.value)}
-                    className="mb-1 h-8 text-xs"
-                    aria-label="Filtrar grupos por plantel"
-                  >
-                    <option value="">Todos los planteles</option>
-                    {CAMPUSES.map((campus) => (
-                      <option key={campus} value={campus}>
-                        {campus}
-                      </option>
-                    ))}
-                  </Select>
+                  <>
+                    <Select
+                      value={plantelFilter}
+                      onChange={(event) => setPlantelFilter(event.target.value)}
+                      className="mb-1 h-8 text-xs"
+                      aria-label="Filtrar grupos por plantel"
+                    >
+                      <option value="">Todos los planteles</option>
+                      {CAMPUSES.map((campus) => (
+                        <option key={campus} value={campus}>
+                          {campus}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select
+                      value={horarioFilter}
+                      onChange={(event) => setHorarioFilter(event.target.value)}
+                      className="mb-1 h-8 text-xs"
+                      aria-label="Filtrar grupos por horario"
+                    >
+                      <option value="">Todos los horarios</option>
+                      {HORARIO_OPTIONS.map((horario) => (
+                        <option key={horario} value={horario}>
+                          {horario}
+                        </option>
+                      ))}
+                    </Select>
+                  </>
                 )}
                 {loading && <p className="px-3 py-1.5 text-xs text-zinc-400">Cargando grupos...</p>}
                 {!loading && groups.length === 0 && (
                   <p className="px-3 py-1.5 text-xs text-zinc-400">Sin grupos todavía</p>
                 )}
                 {!loading && groups.length > 0 && visibleGroups.length === 0 && (
-                  <p className="px-3 py-1.5 text-xs text-zinc-400">Ningún grupo en este plantel</p>
+                  <p className="px-3 py-1.5 text-xs text-zinc-400">Ningún grupo coincide con el filtro</p>
                 )}
                 {visibleGroups.map((group) => {
                   const href = `/dashboard/grupos/${group.id}`;

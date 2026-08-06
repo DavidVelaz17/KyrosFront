@@ -25,6 +25,7 @@ export function matchesStudentFilters(
   if (filters.estatus && student.estatus !== filters.estatus) return false;
   if (!matchesSelectable(student.ingresoA, filters.ingresoA)) return false;
   if (!matchesSelectable(student.horario, filters.horario)) return false;
+  if (filters.llevaIngles && student.llevaIngles !== (filters.llevaIngles === "si")) return false;
   if (filters.universidad && !resolvedUniversidades.includes(filters.universidad)) return false;
   if (filters.grupo && student.grupoId !== filters.grupo) return false;
 
