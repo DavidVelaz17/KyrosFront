@@ -62,6 +62,12 @@ export function ReportePagosPage() {
   }, [payments, universidadMap, studentId, ingresoA, universidad, usuarioId, dia, mes, desde, hasta]);
 
   const total = filtered.reduce((sum, payment) => sum + payment.monto, 0);
+  const totalEfectivo = filtered
+    .filter((payment) => payment.metodoPago === "Efectivo")
+    .reduce((sum, payment) => sum + payment.monto, 0);
+  const totalTransferencia = filtered
+    .filter((payment) => payment.metodoPago === "Transferencia")
+    .reduce((sum, payment) => sum + payment.monto, 0);
 
   useEffect(() => {
     if (loading || hasPrintedRef.current) return;
@@ -112,7 +118,8 @@ export function ReportePagosPage() {
         <p className="mt-1 text-sm text-zinc-600">Filtros: {filterDescriptions.join(" · ")}</p>
       )}
       <p className="mt-1 text-sm font-medium text-zinc-700">
-        {filtered.length} {filtered.length === 1 ? "pago" : "pagos"} · Total: {formatCurrency(total)}
+        {filtered.length} {filtered.length === 1 ? "pago" : "pagos"} · Total: {formatCurrency(total)} · Efectivo:{" "}
+        {formatCurrency(totalEfectivo)} · Transferencias: {formatCurrency(totalTransferencia)}
       </p>
 
       <table className="mt-4 w-full border-collapse text-xs">

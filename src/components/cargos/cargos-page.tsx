@@ -6,9 +6,12 @@ import { listAllCargos, type CargoDto } from "@/lib/api/cargos";
 import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
 import { cargoAlertLevel, cargoAlertRowClass, cargoFilterStatus } from "@/lib/utils/cargo";
 import { useGroups } from "@/components/groups/groups-provider";
+import { useSessionUser } from "@/components/auth/session-provider";
+import { isAdmin } from "@/lib/types/auth";
 import { CargosFilterBar } from "@/components/cargos/cargos-filter-bar";
 import { CargosTable } from "@/components/cargos/cargos-table";
 import { buildCargoColumns } from "@/components/cargos/cargo-columns";
+import { DeleteCargoModal } from "@/components/cargos/delete-cargo-modal";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
@@ -16,12 +19,15 @@ import { CARGO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/cargo-columns";
 
 export function CargosPage() {
   const { groups } = useGroups();
+  const sessionUser = useSessionUser();
+  const canDelete = isAdmin(sessionUser.rol);
   const [cargos, setCargos] = useState<CargoDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [ingresoA, setIngresoA] = useState("");
   const [estado, setEstado] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<CargoDto | null>(null);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:cargos",
     CARGO_COLUMN_DEFAULT_VISIBILITY
@@ -53,7 +59,10 @@ export function CargosPage() {
     });
   }, [cargos, search, grupoId, ingresoA, estado]);
 
-  const columns = useMemo(() => buildCargoColumns(), []);
+  const columns = useMemo(
+    () => buildCargoColumns({ isAdmin: canDelete, onDelete: setDeleteTarget }),
+    [canDelete]
+  );
 
   if (loading) {
     return (
@@ -96,6 +105,13 @@ export function CargosPage() {
           rowClassName={(cargo) => cargoAlertRowClass(cargoAlertLevel(cargo))}
         />
       )}
+
+      <DeleteCargoModal
+        open={deleteTarget !== null}
+        cargo={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={(cargoId) => setCargos((current) => current.filter((cargo) => cargo.idCargo !== cargoId))}
+      />
     </div>
   );
 }

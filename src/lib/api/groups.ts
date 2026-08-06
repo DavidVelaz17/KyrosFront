@@ -1,13 +1,26 @@
 "use server";
 
 import type { CreateGroupInput, Group } from "@/lib/types/group";
+import type { Horario } from "@/lib/types/student";
 import { apiFetch } from "@/lib/api/http";
+
+const HORARIO_TO_BACKEND: Record<Horario, string> = {
+  Escolarizado: "ESCOLARIZADO",
+  Sabatino: "SABATINO",
+  Virtual: "VIRTUAL",
+};
+const HORARIO_FROM_BACKEND: Record<string, Horario> = {
+  ESCOLARIZADO: "Escolarizado",
+  SABATINO: "Sabatino",
+  VIRTUAL: "Virtual",
+};
 
 interface GrupoDto {
   idGrupo: number;
   nombreGrupo: string;
   fechaInicio: string;
   nombrePlantel: string;
+  horario: string;
 }
 
 function toGroup(dto: GrupoDto): Group {
@@ -16,6 +29,7 @@ function toGroup(dto: GrupoDto): Group {
     nombre: dto.nombreGrupo,
     fechaInicio: dto.fechaInicio,
     plantel: dto.nombrePlantel,
+    horario: HORARIO_FROM_BACKEND[dto.horario] ?? "Escolarizado",
   };
 }
 
@@ -40,6 +54,7 @@ export async function createGroup(input: CreateGroupInput): Promise<Group> {
       nombreGrupo: input.nombre,
       fechaInicio: input.fechaInicio,
       nombrePlantel: input.plantel,
+      horario: HORARIO_TO_BACKEND[input.horario],
     }),
   });
   return toGroup(dto);
@@ -52,6 +67,7 @@ export async function updateGroup(id: string, input: CreateGroupInput): Promise<
       nombreGrupo: input.nombre,
       fechaInicio: input.fechaInicio,
       nombrePlantel: input.plantel,
+      horario: HORARIO_TO_BACKEND[input.horario],
     }),
   });
   return toGroup(dto);

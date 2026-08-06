@@ -95,7 +95,7 @@ export function NewCargoModal({ open, onClose, students, onCreated }: NewCargoMo
       onClose={onClose}
       title="Nuevo cargo"
       description="Genera un cargo (adeudo) para un alumno."
-      size="md"
+      size="xl"
       footer={
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>

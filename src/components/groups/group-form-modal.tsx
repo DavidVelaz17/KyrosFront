@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import type { Group } from "@/lib/types/group";
+import { HORARIO_OPTIONS } from "@/lib/types/student";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ const GroupFormSchema = z.object({
   nombre: z.string().min(1, "El nombre del grupo es requerido"),
   fechaInicio: z.string().min(1, "La fecha de inicio es requerida"),
   plantel: z.string().min(1, "Selecciona un plantel"),
+  horario: z.enum(HORARIO_OPTIONS, { message: "Selecciona un horario" }),
 });
 
 type GroupFormValues = z.infer<typeof GroupFormSchema>;
@@ -47,7 +49,7 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
     formState: { errors, isSubmitting },
   } = useForm<GroupFormValues>({
     resolver: zodResolver(GroupFormSchema),
-    defaultValues: { nombre: "", fechaInicio: "", plantel: "" },
+    defaultValues: { nombre: "", fechaInicio: "", plantel: "", horario: "Escolarizado" },
   });
 
   useEffect(() => {
@@ -58,9 +60,14 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
 
   useEffect(() => {
     if (!open) {
-      reset({ nombre: "", fechaInicio: "", plantel: "" });
+      reset({ nombre: "", fechaInicio: "", plantel: "", horario: "Escolarizado" });
     } else if (editGroup) {
-      reset({ nombre: editGroup.nombre, fechaInicio: editGroup.fechaInicio, plantel: editGroup.plantel });
+      reset({
+        nombre: editGroup.nombre,
+        fechaInicio: editGroup.fechaInicio,
+        plantel: editGroup.plantel,
+        horario: editGroup.horario,
+      });
     }
   }, [open, editGroup, reset]);
 
@@ -120,6 +127,15 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
             {campuses.map((campus) => (
               <option key={campus} value={campus}>
                 {campus}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Horario" htmlFor="horario" error={errors.horario?.message} required>
+          <Select id="horario" {...register("horario")}>
+            {HORARIO_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </Select>
