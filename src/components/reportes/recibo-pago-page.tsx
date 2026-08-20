@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { Printer } from "lucide-react";
 import { getPaymentById } from "@/lib/api/payments";
 import { listCargosByStudent } from "@/lib/api/cargos";
@@ -138,7 +139,14 @@ export function ReciboPagoPage() {
               </div>
 
               <div className="flex flex-col items-center text-xs">
-                <div className="mb-1 h-10 w-40 border-b border-zinc-900" />
+                <div className="relative mb-1 h-16 w-40 border-b border-zinc-900">
+                  <Image
+                    src="/firma.jpeg"
+                    alt="Firma"
+                    fill
+                    className="object-contain object-bottom"
+                  />
+                </div>
                 <p>Recibió</p>
                 <p className="text-zinc-500">{payment.usuarioNombre}</p>
               </div>
