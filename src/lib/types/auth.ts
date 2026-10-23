@@ -31,3 +31,9 @@ export function isAdminOrCoordinador(rol: RolUsuario): boolean {
 export function canViewCargos(rol: RolUsuario): boolean {
   return rol === "ADMIN" || rol === "COORDINADOR" || rol === "SECRETARIO";
 }
+
+/** Egresos (dinero que sale: nómina, papelería, ...): los mismos roles que Cargos, no PROFESOR.
+ *  El backend aplica la misma regla en SecurityConfig. */
+export function canViewEgresos(rol: RolUsuario): boolean {
+  return canViewCargos(rol);
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -29,11 +29,27 @@ interface SimpleCatalogPanelProps {
   remove: (id: string) => Promise<void>;
   /** Contenido extra por fila (ej. el botón "Carreras" en Universidades). */
   renderExtra?: (item: DestinoOption) => ReactNode;
+  /** Listas que muestran el nombre de este catálogo y deben refrescarse al editarlo. Por defecto,
+   *  los destinos de las tablas de alumnos. */
+  dependentKeys?: QueryKey[];
 }
 
+const DEFAULT_DEPENDENT_KEYS: QueryKey[] = [["students", "destinos"]];
+
 /** Panel de catálogo genérico (nombre único): lista compacta + alta/edición/borrado. Reutilizado
- *  para Universidades, Bachilleratos, Secundarias y Materias, que comparten la misma forma. */
-export function SimpleCatalogPanel({ title, singularLabel, newLabel, query, create, update, remove, renderExtra }: SimpleCatalogPanelProps) {
+ *  para Universidades, Bachilleratos, Secundarias, Materias, Cursos de verano y Tipos de egreso,
+ *  que comparten la misma forma. */
+export function SimpleCatalogPanel({
+  title,
+  singularLabel,
+  newLabel,
+  query,
+  create,
+  update,
+  remove,
+  renderExtra,
+  dependentKeys = DEFAULT_DEPENDENT_KEYS,
+}: SimpleCatalogPanelProps) {
   const queryClient = useQueryClient();
   const itemsResult = useQuery(query);
   const items = itemsResult.data ?? EMPTY_ITEMS;
@@ -46,8 +62,7 @@ export function SimpleCatalogPanel({ title, singularLabel, newLabel, query, crea
 
   function setItems(updater: (current: DestinoOption[]) => DestinoOption[]) {
     updateCachedList<DestinoOption>(queryClient, query.queryKey, updater);
-    // Los nombres de destino también se muestran en las tablas de alumnos.
-    invalidateKeys(queryClient, ["students", "destinos"]);
+    invalidateKeys(queryClient, ...dependentKeys);
   }
 
   async function handleFormSubmit(nombre: string) {

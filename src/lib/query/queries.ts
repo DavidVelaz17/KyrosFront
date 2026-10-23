@@ -15,6 +15,7 @@ import { listMaterias } from "@/lib/api/asesorias";
 import { listTeachers } from "@/lib/api/teachers";
 import { listUsuarios } from "@/lib/api/usuarios";
 import { listLogs } from "@/lib/api/logs";
+import { listEgresos, listTiposEgreso } from "@/lib/api/egresos";
 
 // Todas las queryFn envuelven a la Server Action en una flecha sin argumentos: si se pasara la
 // Server Action directo, TanStack le mandaría su contexto ({ signal, queryKey, ... }) como
@@ -34,6 +35,7 @@ export const queryKeys = {
   studentDestinos: (ids: string) => ["students", "destinos", ids] as const,
   payments: ["payments"] as const,
   cargos: ["cargos"] as const,
+  egresos: ["egresos"] as const,
   campuses: ["campuses"] as const,
   catalogos: ["catalogos"] as const,
   teachers: ["teachers"] as const,
@@ -63,6 +65,8 @@ export const paymentsQuery = () => queryOptions({ queryKey: queryKeys.payments, 
 
 export const cargosQuery = () => queryOptions({ queryKey: queryKeys.cargos, queryFn: () => listAllCargos() });
 
+export const egresosQuery = () => queryOptions({ queryKey: queryKeys.egresos, queryFn: () => listEgresos() });
+
 export const campusesQuery = () => queryOptions({ queryKey: queryKeys.campuses, queryFn: () => listCampuses() });
 
 export const catalogQueries = {
@@ -71,6 +75,7 @@ export const catalogQueries = {
   secundarias: queryOptions({ queryKey: ["catalogos", "secundarias"], queryFn: () => listSecundarias() }),
   cursosVerano: queryOptions({ queryKey: ["catalogos", "cursos-verano"], queryFn: () => listCursosVerano() }),
   materias: queryOptions({ queryKey: ["catalogos", "materias"], queryFn: () => listMaterias() }),
+  tiposEgreso: queryOptions({ queryKey: ["catalogos", "tipos-egreso"], queryFn: () => listTiposEgreso() }),
 };
 
 export type CatalogQuery = (typeof catalogQueries)[keyof typeof catalogQueries];

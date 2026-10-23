@@ -159,3 +159,16 @@ export async function updateCursoVerano(id: string, nombre: string): Promise<Des
 export async function deleteCursoVerano(id: string): Promise<void> {
   return eliminarCatalogo(`/api/cursos-verano/${id}`);
 }
+
+// ---- Tipos de egreso ----
+export async function createTipoEgreso(nombre: string): Promise<DestinoOption> {
+  return crearCatalogoSimple("/api/tipos-egreso", "nombreTipoEgreso", "idTipoEgreso", nombre);
+}
+
+export async function updateTipoEgreso(id: string, nombre: string): Promise<DestinoOption> {
+  return actualizarCatalogoSimple(`/api/tipos-egreso/${id}`, "nombreTipoEgreso", "idTipoEgreso", nombre);
+}
+
+export async function deleteTipoEgreso(id: string): Promise<void> {
+  return eliminarCatalogo(`/api/tipos-egreso/${id}`);
+}

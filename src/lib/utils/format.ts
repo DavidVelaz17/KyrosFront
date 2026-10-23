@@ -33,6 +33,23 @@ export function formatDateTime(iso: string): string {
   }).format(date);
 }
 
+/** Fecha y hora "locales" sin zona horaria (ej. "2026-10-23T10:15:00", como guarda el backend los
+ *  egresos): se muestran tal cual, sin convertir de zona. Se arma en UTC a propósito para que la
+ *  zona del navegador no mueva la hora. */
+export function formatLocalDateTime(local: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local ?? "");
+  if (!match) return "—";
+  const [, y, mo, d, h, mi] = match.map(Number);
+  return new Intl.DateTimeFormat("es-MX", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, mo - 1, d, h, mi)));
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -45,6 +62,15 @@ export function formatCurrency(amount: number): string {
  *  desde las 18:00 hora CDMX en adelante. */
 export function todayISODate(): string {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Mexico_City" });
+}
+
+/** "Ahora" en horario de México con el formato de un <input type="datetime-local">
+ *  ("2026-10-23T10:15"), por el mismo motivo que todayISODate. */
+export function nowLocalDateTimeInput(): string {
+  return new Date()
+    .toLocaleString("sv-SE", { timeZone: "America/Mexico_City", hour12: false })
+    .slice(0, 16)
+    .replace(" ", "T");
 }
 
 export function initials(nombre: string, apellidoPaterno: string): string {

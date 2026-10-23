@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  Banknote,
   Calendar,
   ChevronDown,
   CreditCard,
@@ -25,7 +26,7 @@ import { Select } from "@/components/ui/select";
 import { CAMPUSES } from "@/lib/constants/campuses";
 import { HORARIO_OPTIONS } from "@/lib/types/student";
 import type { RolUsuario, SessionUser } from "@/lib/types/auth";
-import { canViewCargos, isAdmin, isAdminOrCoordinador } from "@/lib/types/auth";
+import { canViewCargos, canViewEgresos, isAdmin, isAdminOrCoordinador } from "@/lib/types/auth";
 
 const QUICK_ACTIONS_LINK = { href: "/dashboard/acciones-rapidas", label: "Acciones rápidas", icon: Zap };
 
@@ -35,6 +36,7 @@ const NAV_LINKS: { href: string; label: string; icon: typeof IdCard; visible?: (
   { href: "/dashboard/profesores", label: "Profesores", icon: Users },
   { href: "/dashboard/pagos", label: "Pagos", icon: CreditCard },
   { href: "/dashboard/cargos", label: "Cargos", icon: Receipt, visible: canViewCargos },
+  { href: "/dashboard/egresos", label: "Egresos", icon: Banknote, visible: canViewEgresos },
   { href: "/dashboard/catalogos", label: "Catálogos", icon: Library, visible: isAdminOrCoordinador },
   { href: "/dashboard/usuarios", label: "Usuarios", icon: Shield, visible: isAdmin },
   { href: "/dashboard/logs", label: "Logs", icon: ScrollText, visible: isAdmin },

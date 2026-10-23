@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
+import { canViewEgresos } from "@/lib/types/auth";
 import { ReportePagosPage } from "@/components/reportes/reporte-pagos-page";
 
 // Fuera de /dashboard a propósito: esta ruta no debe heredar el layout con sidebar (DashboardShell),
@@ -14,7 +15,7 @@ export default async function ReportePagosRoute() {
 
   return (
     <Suspense fallback={null}>
-      <ReportePagosPage />
+      <ReportePagosPage includeEgresos={canViewEgresos(session.rol)} />
     </Suspense>
   );
 }
