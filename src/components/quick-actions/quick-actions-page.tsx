@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import { Banknote, CreditCard, Receipt, UserPlus } from "lucide-react";
+import { Banknote, CreditCard, Printer, Receipt, UserPlus } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import {
   allStudentsQuery,
@@ -17,11 +17,12 @@ import { StudentFormModal } from "@/components/students/student-form-modal";
 import { NewCargoModal } from "@/components/quick-actions/new-cargo-modal";
 import { NewPagoModal } from "@/components/quick-actions/new-pago-modal";
 import { NewEgresoModal } from "@/components/egresos/new-egreso-modal";
+import { GenerarReporteModal } from "@/components/pagos/generar-reporte-modal";
 import { useSessionUser } from "@/components/auth/session-provider";
 import { canViewEgresos } from "@/lib/types/auth";
 import type { Egreso } from "@/lib/types/egreso";
 
-type ModalKind = "alumno" | "cargo" | "pago" | "egreso" | null;
+type ModalKind = "alumno" | "cargo" | "pago" | "egreso" | "reporte" | null;
 
 const EMPTY_STUDENTS: Student[] = [];
 
@@ -72,11 +73,17 @@ export function QuickActionsPage() {
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Los accesos directos más usados, a un clic de distancia.</p>
       </div>
 
-      <div className={showEgreso ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" : "grid grid-cols-1 gap-4 sm:grid-cols-3"}>
+      <div
+        className={
+          // Siempre en dos filas: 3 + 2 con Egreso, 2 + 2 sin él.
+          showEgreso ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" : "grid grid-cols-1 gap-4 sm:grid-cols-2"
+        }
+      >
         <QuickActionButton icon={UserPlus} label="Nuevo Alumno" onClick={() => setActiveModal("alumno")} />
         <QuickActionButton icon={Receipt} label="Nuevo Cargo" onClick={() => setActiveModal("cargo")} />
         <QuickActionButton icon={CreditCard} label="Nuevo Pago" onClick={() => setActiveModal("pago")} />
         {showEgreso && <QuickActionButton icon={Banknote} label="Nuevo Egreso" onClick={() => setActiveModal("egreso")} />}
+        <QuickActionButton icon={Printer} label="Reporte de Pagos" onClick={() => setActiveModal("reporte")} />
       </div>
 
       <StudentFormModal
@@ -104,6 +111,9 @@ export function QuickActionsPage() {
         students={students}
         onCreated={() => {}}
       />
+      {/* El mismo modal que el botón "Generar reporte" de Pagos. Solo lee datos, así que al cerrarlo
+       *  no hace falta refrescar pagos ni cargos (por eso no usa closeModal). */}
+      <GenerarReporteModal open={activeModal === "reporte"} onClose={() => setActiveModal(null)} />
       {showEgreso && (
         <NewEgresoModal
           open={activeModal === "egreso"}
