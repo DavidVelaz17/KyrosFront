@@ -4,7 +4,7 @@ import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { GraduationCap } from "lucide-react";
 import { login, type LoginFormState } from "@/lib/auth/actions";
-import { clearPersistedClientCache } from "@/lib/query/client-cache";
+import { lockPersistedClientCache } from "@/lib/query/client-cache";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,11 @@ function SubmitButton() {
 export function LoginForm() {
   const [state, formAction] = useActionState(login, INITIAL_STATE);
 
-  // Llegar al login (sesión vencida, cookie borrada o cierre de sesión) borra la copia local de
-  // los datos que haya quedado en el equipo, aunque nadie haya pulsado "Salir".
+  // Llegar al login (sesión vencida, cookie borrada o cierre de sesión) hace que el navegador olvide
+  // la llave de la copia cifrada de los datos, aunque nadie haya pulsado "Salir": queda ilegible
+  // hasta que ese mismo usuario vuelva a iniciar sesión.
   useEffect(() => {
-    void clearPersistedClientCache();
+    void lockPersistedClientCache();
   }, []);
 
   return (

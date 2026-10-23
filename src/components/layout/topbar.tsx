@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { LogOut, Menu } from "lucide-react";
 import { logout } from "@/lib/auth/actions";
-import { clearPersistedClientCache } from "@/lib/query/client-cache";
+import { lockPersistedClientCache } from "@/lib/query/client-cache";
 import { SyncStatus } from "@/components/layout/sync-status";
 import { Avatar } from "@/components/ui/avatar";
 import type { SessionUser } from "@/lib/types/auth";
@@ -11,11 +11,12 @@ import type { SessionUser } from "@/lib/types/auth";
 export function Topbar({ user, onToggleSidebar }: { user: SessionUser; onToggleSidebar: () => void }) {
   const queryClient = useQueryClient();
 
-  /** Antes de cerrar sesión se borra la copia local de los datos (memoria, IndexedDB y páginas
-   *  del service worker) para que en un equipo compartido el siguiente usuario no la vea. */
+  /** Al cerrar sesión, la copia cifrada de los datos se queda en el equipo pero sin llave
+   *  (ilegible), y se vacía la memoria. Primero se bloquea la escritura al disco: si no, vaciar la
+   *  memoria guardaría una copia vacía encima de la del día y al día siguiente no abriría al instante. */
   async function handleLogout() {
+    await lockPersistedClientCache();
     queryClient.clear();
-    await clearPersistedClientCache();
     await logout();
   }
 
