@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,7 +22,6 @@ import {
   addDestino,
   createStudent,
   getDestinos,
-  listAllStudents,
   listExistingMatriculas,
   removeDestino,
   updateStudent,
@@ -29,14 +29,9 @@ import {
   type StudentDestino,
 } from "@/lib/api/students";
 import { StudentSearchField } from "@/components/quick-actions/student-search-field";
-import {
-  listBachilleratos,
-  listCursosVerano,
-  listSecundarias,
-  listUniversidades,
-  type DestinoOption,
-} from "@/lib/api/destinos";
-import { findOrCreateAsesoria, listMaterias, vincularMateriaAsesoria } from "@/lib/api/asesorias";
+import type { DestinoOption } from "@/lib/api/destinos";
+import { findOrCreateAsesoria, vincularMateriaAsesoria } from "@/lib/api/asesorias";
+import { allStudentsQuery, catalogQueries, type CatalogQuery } from "@/lib/query/queries";
 import { AsesoriaDestinoField, type AsesoriaSlot } from "@/components/students/asesoria-destino-field";
 import {
   EMPTY_UNIVERSIDAD_SLOT,
@@ -62,11 +57,14 @@ import {
  *  "Asesorías" y "Universidad" no entran aquí: Asesorías es muchos a muchos (día + hora + materia,
  *  varias por alumno) y Universidad tiene su propio buscador + carrera/área (ver AsesoriaDestinoField
  *  y UniversidadDestinoField), en vez del Select genérico de una sola opción. */
-const DESTINO_FETCHERS: Partial<Record<IngresoA, () => Promise<DestinoOption[]>>> = {
-  Bachillerato: listBachilleratos,
-  Secundaria: listSecundarias,
-  "Curso de verano": listCursosVerano,
+const DESTINO_QUERIES: Partial<Record<IngresoA, CatalogQuery>> = {
+  Bachillerato: catalogQueries.bachilleratos,
+  Secundaria: catalogQueries.secundarias,
+  "Curso de verano": catalogQueries.cursosVerano,
 };
+
+const EMPTY_STUDENTS: Student[] = [];
+const EMPTY_OPTIONS: DestinoOption[] = [];
 
 const DESTINO_LABELS: Record<IngresoA, string> = {
   Universidad: "Universidad",
@@ -254,17 +252,12 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   const [showExtraCargo, setShowExtraCargo] = useState(false);
   const [extraCargoValues, setExtraCargoValues] = useState<NewCargoSectionValues>(EMPTY_NEW_CARGO_SECTION);
   const [extraCargoErrors, setExtraCargoErrors] = useState<NewCargoSectionErrors | undefined>(undefined);
-  const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [originalDestinos, setOriginalDestinos] = useState<StudentDestino[]>([]);
   const [pendingDestinoId, setPendingDestinoId] = useState<string | null>(null);
-  const [destinoOptions, setDestinoOptions] = useState<DestinoOption[]>([]);
-  const [loadingDestinos, setLoadingDestinos] = useState(false);
-  const [materias, setMaterias] = useState<DestinoOption[]>([]);
   const [asesoriaSlots, setAsesoriaSlots] = useState<AsesoriaSlot[]>([]);
   const [asesoriaError, setAsesoriaError] = useState<string | undefined>(undefined);
-  const [universidades, setUniversidades] = useState<DestinoOption[]>([]);
   const [universidadSlots, setUniversidadSlots] = useState<UniversidadSlot[]>([EMPTY_UNIVERSIDAD_SLOT]);
   const [universidadError, setUniversidadError] = useState<string | undefined>(undefined);
   const lastSuggested = useRef<string>("");
@@ -316,45 +309,26 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
   useEffect(() => {
     if (!open) return;
     setValue("idDestino", "");
-    const fetcher = ingresoA ? DESTINO_FETCHERS[ingresoA] : undefined;
-    if (!fetcher) {
-      setDestinoOptions([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingDestinos(true);
-    fetcher().then((options) => {
-      if (cancelled) return;
-      setDestinoOptions(options);
-      setLoadingDestinos(false);
-    });
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ingresoA]);
 
-  useEffect(() => {
-    if (!open || ingresoA !== "Asesorías" || materias.length > 0) return;
-    let cancelled = false;
-    listMaterias().then((options) => {
-      if (!cancelled) setMaterias(options);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, ingresoA, materias.length]);
-
-  useEffect(() => {
-    if (!open || ingresoA !== "Universidad" || universidades.length > 0) return;
-    let cancelled = false;
-    listUniversidades().then((options) => {
-      if (!cancelled) setUniversidades(options);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, ingresoA, universidades.length]);
+  // Catálogos del "Ingresa a": salen al instante de la copia local (los mismos que administra la
+  // pantalla de Catálogos) y se refrescan en segundo plano.
+  const destinoQuery = ingresoA ? DESTINO_QUERIES[ingresoA] : undefined;
+  const destinoResult = useQuery({
+    ...(destinoQuery ?? catalogQueries.bachilleratos),
+    enabled: open && destinoQuery !== undefined,
+  });
+  const destinoOptions = (destinoQuery && destinoResult.data) || EMPTY_OPTIONS;
+  const loadingDestinos = destinoQuery !== undefined && destinoResult.isPending;
+  const { data: materias = EMPTY_OPTIONS } = useQuery({
+    ...catalogQueries.materias,
+    enabled: open && ingresoA === "Asesorías",
+  });
+  const { data: universidades = EMPTY_OPTIONS } = useQuery({
+    ...catalogQueries.universidades,
+    enabled: open && ingresoA === "Universidad",
+  });
 
   useEffect(() => {
     if (ingresoA !== "Universidad") {
@@ -365,16 +339,7 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
 
   // Catálogo de alumnos para la barra de búsqueda de arriba (buscar y reasignar un alumno
   // existente a este grupo, en vez de crear uno nuevo).
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    listAllStudents().then((data) => {
-      if (!cancelled) setAllStudents(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open]);
+  const { data: allStudents = EMPTY_STUDENTS } = useQuery({ ...allStudentsQuery(), enabled: open });
 
   // Una vez que el catálogo del destino "simple" (Bachillerato/Secundaria/Curso de verano) para
   // el ingresoA del alumno cargado termina de llegar, selecciona la opción que ya tenía.
@@ -410,7 +375,6 @@ export function StudentFormModal({ open, onClose, groups, defaultGroupId, onCrea
       setShowExtraCargo(false);
       setExtraCargoValues(EMPTY_NEW_CARGO_SECTION);
       setExtraCargoErrors(undefined);
-      setDestinoOptions([]);
       setAsesoriaSlots([]);
       setAsesoriaError(undefined);
       setUniversidadSlots([EMPTY_UNIVERSIDAD_SLOT]);

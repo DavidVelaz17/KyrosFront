@@ -4,8 +4,7 @@ import { useState } from "react";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { SimpleCatalogPanel } from "@/components/catalogos/simple-catalog-panel";
 import { UniversidadCarrerasButton } from "@/components/catalogos/universidad-carreras-button";
-import { listBachilleratos, listCursosVerano, listSecundarias, listUniversidades } from "@/lib/api/destinos";
-import { listMaterias } from "@/lib/api/asesorias";
+import { catalogQueries } from "@/lib/query/queries";
 import {
   createBachillerato,
   createCursoVerano,
@@ -55,7 +54,7 @@ export function CatalogosPage() {
             title="Universidades"
             singularLabel="Universidad"
             newLabel="Nueva universidad"
-            list={listUniversidades}
+            query={catalogQueries.universidades}
             create={createUniversidad}
             update={updateUniversidad}
             remove={deleteUniversidad}
@@ -67,7 +66,7 @@ export function CatalogosPage() {
             title="Bachilleratos"
             singularLabel="Bachillerato"
             newLabel="Nuevo bachillerato"
-            list={listBachilleratos}
+            query={catalogQueries.bachilleratos}
             create={createBachillerato}
             update={updateBachillerato}
             remove={deleteBachillerato}
@@ -78,7 +77,7 @@ export function CatalogosPage() {
             title="Secundarias"
             singularLabel="Secundaria"
             newLabel="Nueva secundaria"
-            list={listSecundarias}
+            query={catalogQueries.secundarias}
             create={createSecundaria}
             update={updateSecundaria}
             remove={deleteSecundaria}
@@ -89,7 +88,7 @@ export function CatalogosPage() {
             title="Materias"
             singularLabel="Materia"
             newLabel="Nueva materia"
-            list={listMaterias}
+            query={catalogQueries.materias}
             create={createMateria}
             update={updateMateria}
             remove={deleteMateria}
@@ -100,7 +99,7 @@ export function CatalogosPage() {
             title="Cursos de verano"
             singularLabel="Curso de verano"
             newLabel="Nuevo curso de verano"
-            list={listCursosVerano}
+            query={catalogQueries.cursosVerano}
             create={createCursoVerano}
             update={updateCursoVerano}
             remove={deleteCursoVerano}

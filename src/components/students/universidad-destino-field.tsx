@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import type { DestinoOption, CarreraOption } from "@/lib/api/destinos";
-import { listCarrerasByUniversidad } from "@/lib/api/destinos";
+import { carrerasByUniversidadQuery } from "@/lib/query/queries";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -36,12 +37,12 @@ interface UniversidadSlotFieldsProps {
   error?: string;
 }
 
+const EMPTY_CARRERAS: CarreraOption[] = [];
+
 function UniversidadSlotFields({ universidades, slot, index, showRemove, onUpdate, onRemove, error }: UniversidadSlotFieldsProps) {
   const [term, setTerm] = useState("");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [carreras, setCarreras] = useState<CarreraOption[]>([]);
-  const [loadingCarreras, setLoadingCarreras] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -56,23 +57,9 @@ function UniversidadSlotFields({ universidades, slot, index, showRemove, onUpdat
 
   const universidadId = slot.universidadId || null;
 
-  useEffect(() => {
-    if (!universidadId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia carreras cuando esta tarjeta no tiene universidad seleccionada
-      setCarreras([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingCarreras(true);
-    listCarrerasByUniversidad(universidadId).then((options) => {
-      if (cancelled) return;
-      setCarreras(options);
-      setLoadingCarreras(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [universidadId]);
+  const carrerasResult = useQuery({ ...carrerasByUniversidadQuery(universidadId ?? ""), enabled: !!universidadId });
+  const carreras = (universidadId && carrerasResult.data) || EMPTY_CARRERAS;
+  const loadingCarreras = carrerasResult.isPending && carrerasResult.fetchStatus !== "idle";
 
   const results = useMemo(() => {
     const q = term.trim().toLowerCase();

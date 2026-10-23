@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Shield } from "lucide-react";
 import type { Usuario } from "@/lib/types/usuario";
-import { listUsuarios } from "@/lib/api/usuarios";
+import { invalidateKeys, queryKeys, updateCachedList, usuariosQuery } from "@/lib/query/queries";
 import { buildUsuarioColumns } from "@/components/usuarios/usuario-columns";
 import { UsuariosTable } from "@/components/usuarios/usuarios-table";
 import { UsuariosFilterBar } from "@/components/usuarios/usuarios-filter-bar";
@@ -18,9 +19,14 @@ import { USUARIO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/usuario-colum
 
 type ModalKind = "create" | "edit" | "view" | "reset-password" | null;
 
+const EMPTY_USUARIOS: Usuario[] = [];
+
 export function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  // Cuentas del personal: solo en memoria (ver usuariosQuery), nunca en el disco del equipo.
+  const usuariosResult = useQuery(usuariosQuery());
+  const usuarios = usuariosResult.data ?? EMPTY_USUARIOS;
+  const loading = usuariosResult.isPending;
   const [search, setSearch] = useState("");
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:usuarios",
@@ -28,19 +34,6 @@ export function UsuariosPage() {
   );
   const [activeModal, setActiveModal] = useState<ModalKind>(null);
   const [selectedUsuario, setSelectedUsuario] = useState<Usuario | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    listUsuarios().then((data) => {
-      if (!cancelled) {
-        setUsuarios(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredUsuarios = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -117,9 +110,14 @@ export function UsuariosPage() {
         open={activeModal === "create" || activeModal === "edit"}
         onClose={closeModal}
         editUsuario={activeModal === "edit" ? selectedUsuario : null}
-        onSaved={(saved) =>
-          setUsuarios((current) => [...current.filter((usuario) => usuario.id !== saved.id), saved])
-        }
+        onSaved={(saved) => {
+          updateCachedList<Usuario>(queryClient, queryKeys.usuarios, (current) => [
+            ...current.filter((usuario) => usuario.id !== saved.id),
+            saved,
+          ]);
+          // Un usuario con rol PROFESOR también aparece en la pantalla de Profesores.
+          invalidateKeys(queryClient, queryKeys.teachers);
+        }}
       />
       <UsuarioDetailsModal open={activeModal === "view"} onClose={closeModal} usuario={selectedUsuario} />
       <ResetPasswordModal open={activeModal === "reset-password"} onClose={closeModal} usuario={selectedUsuario} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { DestinoOption } from "@/lib/api/destinos";
 import { listCarrerasByUniversidad, type CarreraOption } from "@/lib/api/destinos";
+import { carrerasByUniversidadQuery, invalidateKeys } from "@/lib/query/queries";
 import {
   createCarrera,
   desvincularCarreraUniversidad,
@@ -28,6 +30,7 @@ interface UniversidadCarrerasModalProps {
 /** Gestiona qué carreras ofrece una universidad: vincular una carrera ya existente del catálogo,
  *  crear una carrera nueva y vincularla de una vez, o desvincular una que ya no aplica. */
 export function UniversidadCarrerasModal({ open, onClose, universidad }: UniversidadCarrerasModalProps) {
+  const queryClient = useQueryClient();
   const [linked, setLinked] = useState<CarreraOption[]>([]);
   const [allCarreras, setAllCarreras] = useState<Carrera[]>([]);
   const [areas, setAreas] = useState<DestinoOption[]>([]);
@@ -47,6 +50,9 @@ export function UniversidadCarrerasModal({ open, onClose, universidad }: Univers
 
   useEffect(() => {
     if (!open) {
+      // Esta pantalla edita qué carreras ofrece la universidad: al cerrarla se refresca la copia
+      // cacheada que usa el formulario de alumno.
+      invalidateKeys(queryClient, carrerasByUniversidadQuery(universidad.id).queryKey);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia el formulario de "Nueva carrera" al cerrar
       setCarreraFormOpen(false);
       setNuevaCarreraNombre("");
@@ -69,7 +75,7 @@ export function UniversidadCarrerasModal({ open, onClose, universidad }: Univers
     return () => {
       cancelled = true;
     };
-  }, [open, universidad.id]);
+  }, [open, universidad.id, queryClient]);
 
   const linkableCarreras = allCarreras.filter((carrera) => !linked.some((item) => item.id === carrera.id));
   // Selección efectiva: lo que haya elegido el usuario si sigue disponible, si no la primera

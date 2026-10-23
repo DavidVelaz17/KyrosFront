@@ -1,27 +1,13 @@
-import { listCargosByStudent, type CargoDto } from "@/lib/api/cargos";
-import { listPaymentsByCargo } from "@/lib/api/payments";
+import type { CargoDto } from "@/lib/api/cargos";
+import { listPendingCargos, type PendingCargo } from "@/lib/api/payments";
 import type { EstatusCargo } from "@/lib/types/payment";
 
-export interface PendingCargo extends CargoDto {
-  /** montoTotalCargo menos la suma de los pagos ya registrados sobre ese cargo. */
-  montoRestante: number;
-}
+export type { PendingCargo };
 
-/** Todos los cargos del alumno con estatus distinto de PAGADO, con su saldo restante ya
- *  calculado (monto total del cargo menos lo que ya se le ha abonado). Usado por todos los
- *  modales de pago que muestran "cargos pendientes" de un alumno (Nuevo pago, Registrar pago). */
+/** Cargos pendientes del alumno con su saldo restante (ver listPendingCargos). Usado por todos
+ *  los modales de pago que muestran "cargos pendientes" de un alumno (Nuevo pago, Registrar pago). */
 export async function fetchPendingCargos(studentId: string): Promise<PendingCargo[]> {
-  const cargos = await listCargosByStudent(studentId);
-  const pendientes = cargos.filter((cargo) => cargo.estatusCargo !== "PAGADO");
-  return Promise.all(
-    pendientes.map(async (cargo) => {
-      const pagos = await listPaymentsByCargo(cargo.idCargo);
-      const pagado = pagos.reduce((sum, pago) => sum + pago.monto, 0);
-      // Redondeo a centavos para evitar artefactos de punto flotante (ej. 499.99999999999994).
-      const restante = Math.round((cargo.montoTotalCargo - pagado) * 100) / 100;
-      return { ...cargo, montoRestante: Math.max(restante, 0) };
-    })
-  );
+  return listPendingCargos(studentId);
 }
 
 export type CargoAlertLevel = "none" | "warning" | "overdue";

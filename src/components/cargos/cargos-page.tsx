@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
-import { listAllCargos, type CargoDto } from "@/lib/api/cargos";
+import type { CargoDto } from "@/lib/api/cargos";
+import { cargosQuery, invalidateKeys, queryKeys, updateCachedList } from "@/lib/query/queries";
 import { INGRESO_A_FROM_BACKEND } from "@/lib/types/student";
 import { cargoAlertLevel, cargoAlertRowClass, cargoFilterStatus } from "@/lib/utils/cargo";
 import { useGroups } from "@/components/groups/groups-provider";
@@ -17,12 +19,16 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { CARGO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/cargo-columns";
 
+const EMPTY_CARGOS: CargoDto[] = [];
+
 export function CargosPage() {
   const { groups } = useGroups();
   const sessionUser = useSessionUser();
   const canDelete = isAdmin(sessionUser.rol);
-  const [cargos, setCargos] = useState<CargoDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const cargosResult = useQuery(cargosQuery());
+  const cargos = cargosResult.data ?? EMPTY_CARGOS;
+  const loading = cargosResult.isPending;
   const [search, setSearch] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [ingresoA, setIngresoA] = useState("");
@@ -32,13 +38,6 @@ export function CargosPage() {
     "kyros:columns:cargos",
     CARGO_COLUMN_DEFAULT_VISIBILITY
   );
-
-  useEffect(() => {
-    listAllCargos().then((data) => {
-      setCargos(data);
-      setLoading(false);
-    });
-  }, []);
 
   const filteredCargos = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -110,7 +109,13 @@ export function CargosPage() {
         open={deleteTarget !== null}
         cargo={deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onDeleted={(cargoId) => setCargos((current) => current.filter((cargo) => cargo.idCargo !== cargoId))}
+        onDeleted={(cargoId) => {
+          updateCachedList<CargoDto>(queryClient, queryKeys.cargos, (current) =>
+            current.filter((cargo) => cargo.idCargo !== cargoId)
+          );
+          // Si el backend borra en cascada los abonos del cargo, la lista de pagos también cambia.
+          invalidateKeys(queryClient, queryKeys.payments);
+        }}
       />
     </div>
   );

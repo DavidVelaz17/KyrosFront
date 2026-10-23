@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { GraduationCap } from "lucide-react";
 import { login, type LoginFormState } from "@/lib/auth/actions";
+import { clearPersistedClientCache } from "@/lib/query/client-cache";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,12 @@ function SubmitButton() {
 
 export function LoginForm() {
   const [state, formAction] = useActionState(login, INITIAL_STATE);
+
+  // Llegar al login (sesión vencida, cookie borrada o cierre de sesión) borra la copia local de
+  // los datos que haya quedado en el equipo, aunque nadie haya pulsado "Salir".
+  useEffect(() => {
+    void clearPersistedClientCache();
+  }, []);
 
   return (
     <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

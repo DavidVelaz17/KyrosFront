@@ -14,6 +14,21 @@ const nextConfig: NextConfig = {
   // (celular, otra computadora) usando la IP de esta máquina. Si la IP cambia (DHCP),
   // hay que actualizarla aquí.
   allowedDevOrigins: ["192.168.1.148"],
+  // El service worker (public/sw.js) nunca debe quedarse cacheado por el navegador, para que cada
+  // despliegue lo actualice; y solo puede cargar scripts del propio dominio. Ver la guía
+  // "progressive-web-apps" de Next.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

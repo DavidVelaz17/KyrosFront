@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Users } from "lucide-react";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
-import { listAllStudents } from "@/lib/api/students";
 import { listPaymentsByStudent } from "@/lib/api/payments";
-import { listUniversidades } from "@/lib/api/destinos";
+import {
+  allStudentsQuery,
+  catalogQueries,
+  invalidateAfterPaymentChange,
+  invalidateKeys,
+  queryKeys,
+  updateCachedList,
+} from "@/lib/query/queries";
 import { useGroups } from "@/components/groups/groups-provider";
 import { StudentsFilterBar } from "@/components/students/students-filter-bar";
 import { StudentsTable } from "@/components/students/students-table";
@@ -29,12 +36,20 @@ import { matchesStudentFilters } from "@/lib/utils/student-filters";
 
 type ModalKind = "create" | "edit" | "view" | "pay" | "history" | "baja" | null;
 
+const EMPTY_STUDENTS: Student[] = [];
+
 export function AllStudentsPage() {
   const { groups } = useGroups();
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const studentsQuery = useQuery(allStudentsQuery());
+  const students = studentsQuery.data ?? EMPTY_STUDENTS;
+  const loading = studentsQuery.isPending;
   const [search, setSearch] = useState("");
-  const [universidadCatalog, setUniversidadCatalog] = useState<string[]>([]);
+  const { data: universidades } = useQuery(catalogQueries.universidades);
+  const universidadCatalog = useMemo(
+    () => (universidades ?? []).map((option) => option.label).sort(),
+    [universidades]
+  );
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_STUDENT_FILTERS);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:students",
@@ -46,32 +61,16 @@ export function AllStudentsPage() {
   const [historyPayments, setHistoryPayments] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    listAllStudents().then((data) => {
-      if (!cancelled) {
-        setStudents(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  /** Refleja en la lista cacheada lo que el servidor ya respondió y marca como desactualizadas
+   *  las listas de alumnos por grupo para que se refresquen en segundo plano. */
+  function setStudents(updater: (current: Student[]) => Student[]) {
+    updateCachedList<Student>(queryClient, queryKeys.allStudents, updater);
+    invalidateKeys(queryClient, queryKeys.students);
+  }
 
   const groupNameById = useMemo(() => new Map(groups.map((group) => [group.id, group.nombre])), [groups]);
   const universidadMap = useStudentUniversidades(students);
   const cargoAlerts = useStudentCargoAlerts(students);
-
-  useEffect(() => {
-    let cancelled = false;
-    listUniversidades().then((options) => {
-      if (!cancelled) setUniversidadCatalog(options.map((option) => option.label).sort());
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -117,6 +116,11 @@ export function AllStudentsPage() {
   );
 
   function closeModal() {
+    // El alta/edición puede registrar el pago de inscripción y cargos extra, y el modal de pago
+    // puede crear cargos sin pago: al cerrarlos se refrescan pagos y cargos sin importar la ruta.
+    if (activeModal === "pay" || activeModal === "create" || activeModal === "edit") {
+      invalidateAfterPaymentChange(queryClient);
+    }
     setActiveModal(null);
   }
 
@@ -180,9 +184,9 @@ export function AllStudentsPage() {
         groups={groups}
         defaultGroupId=""
         editStudent={activeModal === "edit" ? selectedStudent : null}
-        onCreated={(created) =>
-          setStudents((current) => [...current.filter((student) => student.id !== created.id), created as Student])
-        }
+        onCreated={(created) => {
+          setStudents((current) => [...current.filter((student) => student.id !== created.id), created as Student]);
+        }}
       />
       <StudentDetailsModal open={activeModal === "view"} onClose={closeModal} student={selectedStudent} />
       <BajaAlumnoModal
