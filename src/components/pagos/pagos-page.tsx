@@ -18,7 +18,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { PAGO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/pago-columns";
-import { formatCurrency } from "@/lib/utils/format";
 
 const EMPTY_PAYMENTS: Payment[] = [];
 
@@ -52,7 +51,6 @@ export function PagosPage() {
     () => buildPagoColumns({ isAdmin: canDelete, onDelete: setDeleteTarget }),
     [canDelete]
   );
-  const total = filteredPayments.reduce((sum, payment) => sum + payment.monto, 0);
 
   if (loading) {
     return (
@@ -68,8 +66,7 @@ export function PagosPage() {
         <div>
           <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Pagos</h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {filteredPayments.length} {filteredPayments.length === 1 ? "pago registrado" : "pagos registrados"} · Total:{" "}
-            {formatCurrency(total)}
+            {filteredPayments.length} {filteredPayments.length === 1 ? "pago registrado" : "pagos registrados"}
           </p>
         </div>
         <Button variant="secondary" onClick={() => setReporteOpen(true)}>

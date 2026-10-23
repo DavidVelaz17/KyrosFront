@@ -4,22 +4,25 @@ import { useState } from "react";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { SimpleCatalogPanel } from "@/components/catalogos/simple-catalog-panel";
 import { UniversidadCarrerasButton } from "@/components/catalogos/universidad-carreras-button";
-import { catalogQueries } from "@/lib/query/queries";
+import { catalogQueries, queryKeys } from "@/lib/query/queries";
 import {
   createBachillerato,
   createCursoVerano,
   createMateria,
   createSecundaria,
+  createTipoEgreso,
   createUniversidad,
   deleteBachillerato,
   deleteCursoVerano,
   deleteMateria,
   deleteSecundaria,
+  deleteTipoEgreso,
   deleteUniversidad,
   updateBachillerato,
   updateCursoVerano,
   updateMateria,
   updateSecundaria,
+  updateTipoEgreso,
   updateUniversidad,
 } from "@/lib/api/catalogos";
 
@@ -29,6 +32,7 @@ const TABS: TabItem[] = [
   { id: "secundarias", label: "Secundarias" },
   { id: "materias", label: "Materias" },
   { id: "cursos-verano", label: "Cursos de verano" },
+  { id: "tipos-egreso", label: "Tipos de egreso" },
 ];
 
 /** Administración de los catálogos que se usan al inscribir alumnos (sección "Ingresa a" del
@@ -42,7 +46,7 @@ export function CatalogosPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Catálogos</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Universidades (y sus carreras), bachilleratos, secundarias, materias y cursos de verano disponibles al inscribir alumnos.
+          Universidades (y sus carreras), bachilleratos, secundarias, materias y cursos de verano disponibles al inscribir alumnos, y los tipos de egreso.
         </p>
       </div>
 
@@ -103,6 +107,18 @@ export function CatalogosPage() {
             create={createCursoVerano}
             update={updateCursoVerano}
             remove={deleteCursoVerano}
+          />
+        )}
+        {active === "tipos-egreso" && (
+          <SimpleCatalogPanel
+            title="Tipos de egreso"
+            singularLabel="Tipo de egreso"
+            newLabel="Nuevo tipo de egreso"
+            query={catalogQueries.tiposEgreso}
+            create={createTipoEgreso}
+            update={updateTipoEgreso}
+            remove={deleteTipoEgreso}
+            dependentKeys={[queryKeys.egresos]}
           />
         )}
       </div>
