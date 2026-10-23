@@ -82,6 +82,29 @@ export async function listPaymentsByCargo(idCargo: number): Promise<Payment[]> {
   return dtos.map(toPayment);
 }
 
+export interface PendingCargo extends CargoDto {
+  /** montoTotalCargo menos la suma de los pagos ya registrados sobre ese cargo. */
+  montoRestante: number;
+}
+
+/** Todos los cargos del alumno con estatus distinto de PAGADO, con su saldo restante ya
+ *  calculado (monto total del cargo menos lo que ya se le ha abonado). Se resuelve en UNA sola
+ *  Server Action (en vez de una por cargo desde el navegador, que el cliente despacha en fila) y
+ *  nunca se cachea en el cliente: es el saldo sobre el que se cobra, tiene que estar al día. */
+export async function listPendingCargos(studentId: string): Promise<PendingCargo[]> {
+  const cargos = await listCargosByStudent(studentId);
+  const pendientes = cargos.filter((cargo) => cargo.estatusCargo !== "PAGADO");
+  return Promise.all(
+    pendientes.map(async (cargo) => {
+      const pagos = await listPaymentsByCargo(cargo.idCargo);
+      const pagado = pagos.reduce((sum, pago) => sum + pago.monto, 0);
+      // Redondeo a centavos para evitar artefactos de punto flotante (ej. 499.99999999999994).
+      const restante = Math.round((cargo.montoTotalCargo - pagado) * 100) / 100;
+      return { ...cargo, montoRestante: Math.max(restante, 0) };
+    })
+  );
+}
+
 export async function createPayment(input: CreatePaymentInput): Promise<Payment> {
   const session = await getSession();
   if (!session) {

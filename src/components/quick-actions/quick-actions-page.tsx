@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import { CreditCard, Receipt, UserPlus } from "lucide-react";
 import type { Student } from "@/lib/types/student";
-import { listAllStudents } from "@/lib/api/students";
+import {
+  allStudentsQuery,
+  invalidateAfterPaymentChange,
+  invalidateKeys,
+  queryKeys,
+  updateCachedList,
+} from "@/lib/query/queries";
 import { useGroups } from "@/components/groups/groups-provider";
 import { StudentFormModal } from "@/components/students/student-form-modal";
 import { NewCargoModal } from "@/components/quick-actions/new-cargo-modal";
 import { NewPagoModal } from "@/components/quick-actions/new-pago-modal";
 
 type ModalKind = "alumno" | "cargo" | "pago" | null;
+
+const EMPTY_STUDENTS: Student[] = [];
 
 function QuickActionButton({
   icon: Icon,
@@ -37,20 +46,16 @@ function QuickActionButton({
 
 export function QuickActionsPage() {
   const { groups } = useGroups();
-  const [students, setStudents] = useState<Student[]>([]);
+  const queryClient = useQueryClient();
+  // Catálogo de alumnos para las barras de búsqueda de "Nuevo cargo" / "Nuevo pago": sale al
+  // instante de la copia local y se refresca en segundo plano.
+  const { data: students = EMPTY_STUDENTS } = useQuery(allStudentsQuery());
   const [activeModal, setActiveModal] = useState<ModalKind>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    listAllStudents().then((data) => {
-      if (!cancelled) setStudents(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   function closeModal() {
+    // Cualquiera de los tres modales puede registrar pagos o cargos (el alta incluye el pago de
+    // inscripción): al cerrarlos se marcan como desactualizados sin importar qué ruta se tomó.
+    invalidateAfterPaymentChange(queryClient);
     setActiveModal(null);
   }
 
@@ -72,10 +77,26 @@ export function QuickActionsPage() {
         onClose={closeModal}
         groups={groups}
         defaultGroupId=""
-        onCreated={(created) => setStudents((current) => [...current, created as Student])}
+        onCreated={(created) => {
+          updateCachedList<Student>(queryClient, queryKeys.allStudents, (current) => [
+            ...current.filter((student) => student.id !== created.id),
+            created as Student,
+          ]);
+          invalidateKeys(queryClient, queryKeys.students);
+        }}
       />
-      <NewCargoModal open={activeModal === "cargo"} onClose={closeModal} students={students} onCreated={() => {}} />
-      <NewPagoModal open={activeModal === "pago"} onClose={closeModal} students={students} onCreated={() => {}} />
+      <NewCargoModal
+        open={activeModal === "cargo"}
+        onClose={closeModal}
+        students={students}
+        onCreated={() => {}}
+      />
+      <NewPagoModal
+        open={activeModal === "pago"}
+        onClose={closeModal}
+        students={students}
+        onCreated={() => {}}
+      />
     </div>
   );
 }

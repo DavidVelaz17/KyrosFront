@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Users } from "lucide-react";
 import type { Teacher } from "@/lib/types/teacher";
-import { listTeachers } from "@/lib/api/teachers";
+import { invalidateKeys, queryKeys, teachersQuery, updateCachedList } from "@/lib/query/queries";
 import { buildTeacherColumns } from "@/components/teachers/teacher-columns";
 import { TeachersTable } from "@/components/teachers/teachers-table";
 import { TeacherFormModal } from "@/components/teachers/teacher-form-modal";
@@ -16,25 +17,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 type ModalKind = "create" | "edit" | "view" | "resetPassword" | null;
 
+const EMPTY_TEACHERS: Teacher[] = [];
+
 export function TeachersPage() {
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  // Cuentas del personal: solo en memoria (ver teachersQuery), nunca en el disco del equipo.
+  const teachersResult = useQuery(teachersQuery());
+  const teachers = teachersResult.data ?? EMPTY_TEACHERS;
+  const loading = teachersResult.isPending;
   const [search, setSearch] = useState("");
   const [activeModal, setActiveModal] = useState<ModalKind>(null);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    listTeachers().then((data) => {
-      if (!cancelled) {
-        setTeachers(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredTeachers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -68,10 +61,12 @@ export function TeachersPage() {
   }
 
   function upsertTeacher(teacher: Teacher) {
-    setTeachers((current) => {
+    updateCachedList<Teacher>(queryClient, queryKeys.teachers, (current) => {
       const exists = current.some((item) => item.id === teacher.id);
       return exists ? current.map((item) => (item.id === teacher.id ? teacher : item)) : [...current, teacher];
     });
+    // Los profesores son usuarios con rol PROFESOR: también aparecen en la pantalla de Usuarios.
+    invalidateKeys(queryClient, queryKeys.usuarios);
   }
 
   if (loading) {

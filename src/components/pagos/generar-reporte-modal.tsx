@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import { INGRESO_A_OPTIONS } from "@/lib/types/student";
-import { listAllStudents } from "@/lib/api/students";
-import { listUniversidades, type DestinoOption } from "@/lib/api/destinos";
-import { listUsuarios } from "@/lib/api/usuarios";
+import type { DestinoOption } from "@/lib/api/destinos";
 import type { Usuario } from "@/lib/types/usuario";
+import { allStudentsQuery, catalogQueries, usuariosQuery } from "@/lib/query/queries";
 import { Modal } from "@/components/ui/modal";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -27,10 +27,14 @@ interface GenerarReporteModalProps {
 
 /** Junta los filtros elegidos y abre /reportes/pagos en una pestaña nueva (que a su vez
  *  dispara window.print() sola al cargar) — ahí es donde se ve/imprime/guarda como PDF. */
+const EMPTY_STUDENTS: Student[] = [];
+const EMPTY_UNIVERSIDADES: DestinoOption[] = [];
+const EMPTY_USUARIOS: Usuario[] = [];
+
 export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps) {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [universidades, setUniversidades] = useState<DestinoOption[]>([]);
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const { data: students = EMPTY_STUDENTS } = useQuery({ ...allStudentsQuery(), enabled: open });
+  const { data: universidades = EMPTY_UNIVERSIDADES } = useQuery({ ...catalogQueries.universidades, enabled: open });
+  const { data: usuarios = EMPTY_USUARIOS } = useQuery({ ...usuariosQuery(), enabled: open });
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [universidad, setUniversidad] = useState("");
   const [ingresoA, setIngresoA] = useState("");
@@ -40,13 +44,6 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
   const [mes, setMes] = useState(todayISODate().slice(0, 7));
   const [desde, setDesde] = useState(todayISODate());
   const [hasta, setHasta] = useState(todayISODate());
-
-  useEffect(() => {
-    if (!open) return;
-    listAllStudents().then(setStudents);
-    listUniversidades().then(setUniversidades);
-    listUsuarios().then(setUsuarios);
-  }, [open]);
 
   useEffect(() => {
     if (!open) {

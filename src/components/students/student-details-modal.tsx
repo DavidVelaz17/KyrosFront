@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
-import { getDestinos, type StudentDestino } from "@/lib/api/students";
+import type { StudentDestino } from "@/lib/api/students";
+import { studentDestinosQuery } from "@/lib/query/queries";
 import { Modal } from "@/components/ui/modal";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -22,29 +24,14 @@ function DetailItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+const EMPTY_DESTINOS: StudentDestino[] = [];
+
 export function StudentDetailsModal({ open, onClose, student }: { open: boolean; onClose: () => void; student: Student | null }) {
-  const [destinos, setDestinos] = useState<StudentDestino[]>([]);
-  const [loadingDestinos, setLoadingDestinos] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
   const studentId = student?.id;
-
-  useEffect(() => {
-    if (!open || !studentId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia destinos del alumno anterior cuando se cierra el modal
-      setDestinos([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingDestinos(true);
-    getDestinos(studentId).then((data) => {
-      if (cancelled) return;
-      setDestinos(data);
-      setLoadingDestinos(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, studentId]);
+  const destinosResult = useQuery({ ...studentDestinosQuery(studentId ?? ""), enabled: open && !!studentId });
+  const destinos: StudentDestino[] = (studentId && destinosResult.data?.[studentId]) || EMPTY_DESTINOS;
+  const loadingDestinos = destinosResult.isPending && destinosResult.fetchStatus !== "idle";
 
   // Escape cierra primero la foto ampliada, no el modal completo: sin esto, el <dialog> nativo
   // del modal de abajo captura el Escape y cierra todo de un solo golpe (ver Modal.onCancel).

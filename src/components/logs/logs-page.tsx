@@ -1,32 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ScrollText, Search } from "lucide-react";
 import type { LogEntry } from "@/lib/types/log";
-import { listLogs } from "@/lib/api/logs";
+import { logsQuery } from "@/lib/query/queries";
 import { buildLogColumns } from "@/components/logs/log-columns";
 import { LogsTable } from "@/components/logs/logs-table";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 
-export function LogsPage() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+const EMPTY_LOGS: LogEntry[] = [];
 
-  useEffect(() => {
-    let cancelled = false;
-    listLogs().then((data) => {
-      if (!cancelled) {
-        setLogs(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+export function LogsPage() {
+  // Bitácora de accesos: solo en memoria (ver logsQuery), nunca en el disco del equipo.
+  const logsResult = useQuery(logsQuery());
+  const logs = logsResult.data ?? EMPTY_LOGS;
+  const loading = logsResult.isPending;
+  const [search, setSearch] = useState("");
 
   const filteredLogs = useMemo(() => {
     const term = search.trim().toLowerCase();

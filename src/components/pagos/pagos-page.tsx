@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Printer, Wallet } from "lucide-react";
-import { listPayments } from "@/lib/api/payments";
+import { invalidateKeys, paymentsQuery, queryKeys, updateCachedList } from "@/lib/query/queries";
 import type { Payment } from "@/lib/types/payment";
 import { useGroups } from "@/components/groups/groups-provider";
 import { useSessionUser } from "@/components/auth/session-provider";
@@ -19,12 +20,16 @@ import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { PAGO_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/pago-columns";
 import { formatCurrency } from "@/lib/utils/format";
 
+const EMPTY_PAYMENTS: Payment[] = [];
+
 export function PagosPage() {
   const { groups } = useGroups();
   const sessionUser = useSessionUser();
   const canDelete = isAdmin(sessionUser.rol);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const paymentsResult = useQuery(paymentsQuery());
+  const payments = paymentsResult.data ?? EMPTY_PAYMENTS;
+  const loading = paymentsResult.isPending;
   const [search, setSearch] = useState("");
   const [grupoId, setGrupoId] = useState("");
   const [reporteOpen, setReporteOpen] = useState(false);
@@ -33,13 +38,6 @@ export function PagosPage() {
     "kyros:columns:pagos",
     PAGO_COLUMN_DEFAULT_VISIBILITY
   );
-
-  useEffect(() => {
-    listPayments().then((data) => {
-      setPayments(data);
-      setLoading(false);
-    });
-  }, []);
 
   const filteredPayments = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -106,7 +104,13 @@ export function PagosPage() {
         open={deleteTarget !== null}
         payment={deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        onDeleted={(paymentId) => setPayments((current) => current.filter((payment) => payment.id !== paymentId))}
+        onDeleted={(paymentId) => {
+          updateCachedList<Payment>(queryClient, queryKeys.payments, (current) =>
+            current.filter((payment) => payment.id !== paymentId)
+          );
+          // Borrar un abono cambia el saldo/estatus de su cargo.
+          invalidateKeys(queryClient, queryKeys.cargos);
+        }}
       />
     </div>
   );

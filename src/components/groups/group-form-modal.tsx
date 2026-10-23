@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { createGroup, updateGroup } from "@/lib/api/groups";
-import { listCampuses } from "@/lib/api/campuses";
+import { campusesQuery } from "@/lib/query/queries";
 import { useGroups } from "@/components/groups/groups-provider";
 
 const GroupFormSchema = z.object({
@@ -32,10 +33,12 @@ interface GroupFormModalProps {
   editGroup?: Group | null;
 }
 
+const EMPTY_CAMPUSES: string[] = [];
+
 export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormModalProps) {
   const { addGroup, updateGroupInList } = useGroups();
   const router = useRouter();
-  const [campuses, setCampuses] = useState<string[]>([]);
+  const { data: campuses = EMPTY_CAMPUSES } = useQuery({ ...campusesQuery(), enabled: open });
   // Id único por instancia: este modal se monta a la vez en el sidebar (crear) y en la página del
   // grupo (editar); un id fijo duplicaba el atributo `id` en el DOM y el botón "Guardar cambios"
   // terminaba enviando el formulario equivocado (el del sidebar, vacío) en vez del que se ve.
@@ -51,12 +54,6 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
     resolver: zodResolver(GroupFormSchema),
     defaultValues: { nombre: "", fechaInicio: "", plantel: "", horario: "Escolarizado" },
   });
-
-  useEffect(() => {
-    if (open) {
-      listCampuses().then(setCampuses);
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) {

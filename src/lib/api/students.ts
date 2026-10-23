@@ -283,3 +283,23 @@ export async function getDestinos(studentId: string): Promise<StudentDestino[]> 
     hora: dto.hora ?? undefined,
   }));
 }
+
+/** Cuántas consultas de destinos se mandan al backend a la vez desde getDestinosForStudents. */
+const DESTINOS_CONCURRENCY = 8;
+
+/** Destinos de varios alumnos en UNA sola Server Action: el cliente despacha las Server Actions
+ *  de una en una, así que llamar getDestinos por alumno desde el navegador hacía una ida y vuelta
+ *  por alumno, en fila (y cualquier otra acción, como registrar un pago, esperaba detrás). Aquí
+ *  las consultas al backend van en paralelo desde el servidor de Next. */
+export async function getDestinosForStudents(studentIds: string[]): Promise<Record<string, StudentDestino[]>> {
+  const result: Record<string, StudentDestino[]> = {};
+  let next = 0;
+  async function worker() {
+    while (next < studentIds.length) {
+      const id = studentIds[next++];
+      result[id] = await getDestinos(id);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(DESTINOS_CONCURRENCY, studentIds.length) }, worker));
+  return result;
+}

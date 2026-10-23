@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CatalogList } from "@/components/catalogos/catalog-list";
 import { CatalogFormModal } from "@/components/catalogos/catalog-form-modal";
 import type { DestinoOption } from "@/lib/api/destinos";
+import { invalidateKeys, updateCachedList, type CatalogQuery } from "@/lib/query/queries";
+
+const EMPTY_ITEMS: DestinoOption[] = [];
 
 interface SimpleCatalogPanelProps {
   /** Ej. "Bachilleratos". */
@@ -17,7 +21,9 @@ interface SimpleCatalogPanelProps {
   /** Ej. "Nueva universidad" / "Nuevo bachillerato" — frase completa para que el llamador
    *  resuelva la concordancia de género (el componente no puede adivinarla del nombre). */
   newLabel: string;
-  list: () => Promise<DestinoOption[]>;
+  /** Consulta cacheada del catálogo (ver catalogQueries): la misma que usan los formularios de
+   *  alumno, así que lo que se edite aquí se refleja allá sin volver a pedirlo. */
+  query: CatalogQuery;
   create: (nombre: string) => Promise<DestinoOption>;
   update: (id: string, nombre: string) => Promise<DestinoOption>;
   remove: (id: string) => Promise<void>;
@@ -27,28 +33,22 @@ interface SimpleCatalogPanelProps {
 
 /** Panel de catálogo genérico (nombre único): lista compacta + alta/edición/borrado. Reutilizado
  *  para Universidades, Bachilleratos, Secundarias y Materias, que comparten la misma forma. */
-export function SimpleCatalogPanel({ title, singularLabel, newLabel, list, create, update, remove, renderExtra }: SimpleCatalogPanelProps) {
-  const [items, setItems] = useState<DestinoOption[]>([]);
-  const [loading, setLoading] = useState(true);
+export function SimpleCatalogPanel({ title, singularLabel, newLabel, query, create, update, remove, renderExtra }: SimpleCatalogPanelProps) {
+  const queryClient = useQueryClient();
+  const itemsResult = useQuery(query);
+  const items = itemsResult.data ?? EMPTY_ITEMS;
+  const loading = itemsResult.isPending;
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<DestinoOption | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DestinoOption | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    let cancelled = false;
-    list().then((data) => {
-      if (!cancelled) {
-        setItems(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function setItems(updater: (current: DestinoOption[]) => DestinoOption[]) {
+    updateCachedList<DestinoOption>(queryClient, query.queryKey, updater);
+    // Los nombres de destino también se muestran en las tablas de alumnos.
+    invalidateKeys(queryClient, ["students", "destinos"]);
+  }
 
   async function handleFormSubmit(nombre: string) {
     if (editItem) {

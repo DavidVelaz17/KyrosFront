@@ -1,31 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import type { Group } from "@/lib/types/group";
-import { getGroup } from "@/lib/api/groups";
+import { groupQuery, queryKeys } from "@/lib/query/queries";
 import { StudentsPage } from "@/components/students/students-page";
 import { Spinner } from "@/components/ui/spinner";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export function GroupStudentsLoader({ groupId }: { groupId: string }) {
-  const [group, setGroup] = useState<Group | null | undefined>(undefined);
-  const [loadedGroupId, setLoadedGroupId] = useState<string | null>(null);
-
-  if (groupId !== loadedGroupId) {
-    setLoadedGroupId(groupId);
-    setGroup(undefined);
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    getGroup(groupId).then((data) => {
-      if (!cancelled) setGroup(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [groupId]);
+  const queryClient = useQueryClient();
+  // Mientras llega el detalle del grupo, usa el que ya está en la lista de grupos (sidebar) para
+  // mostrar la página al instante.
+  const { data: group } = useQuery({
+    ...groupQuery(groupId),
+    placeholderData: () => queryClient.getQueryData<Group[]>(queryKeys.groups)?.find((candidate) => candidate.id === groupId),
+  });
 
   if (group === undefined) {
     return (

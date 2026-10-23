@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import type { Group } from "@/lib/types/group";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
-import { listStudentsByGroup } from "@/lib/api/students";
 import { listPaymentsByStudent } from "@/lib/api/payments";
-import { listUniversidades } from "@/lib/api/destinos";
+import {
+  catalogQueries,
+  invalidateAfterPaymentChange,
+  invalidateKeys,
+  queryKeys,
+  studentsByGroupQuery,
+  updateCachedList,
+} from "@/lib/query/queries";
 import { useGroups } from "@/components/groups/groups-provider";
 import { GroupFormModal } from "@/components/groups/group-form-modal";
 import { DeleteGroupModal } from "@/components/groups/delete-group-modal";
@@ -37,16 +44,24 @@ import { isAdminOrCoordinador } from "@/lib/types/auth";
 type ModalKind = "create" | "edit" | "view" | "pay" | "history" | "baja" | null;
 type GroupModalKind = "edit" | "delete" | null;
 
+const EMPTY_STUDENTS: Student[] = [];
+
 export function StudentsPage({ group }: { group: Group }) {
   const router = useRouter();
   const sessionUser = useSessionUser();
   const canManageGroup = isAdminOrCoordinador(sessionUser.rol);
   const { groups, removeGroup } = useGroups();
   const [groupModal, setGroupModal] = useState<GroupModalKind>(null);
-  const [students, setStudents] = useState<Student[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const studentsQuery = useQuery(studentsByGroupQuery(group.id));
+  const students = studentsQuery.data ?? EMPTY_STUDENTS;
+  const loading = studentsQuery.isPending;
   const [search, setSearch] = useState("");
-  const [universidadCatalog, setUniversidadCatalog] = useState<string[]>([]);
+  const { data: universidades } = useQuery(catalogQueries.universidades);
+  const universidadCatalog = useMemo(
+    () => (universidades ?? []).map((option) => option.label).sort(),
+    [universidades]
+  );
   const [filters, setFilters] = useState<StudentFilters>(EMPTY_STUDENT_FILTERS);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(
     "kyros:columns:students",
@@ -57,43 +72,22 @@ export function StudentsPage({ group }: { group: Group }) {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [historyPayments, setHistoryPayments] = useState<Payment[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [loadedGroupId, setLoadedGroupId] = useState<string | null>(null);
 
   // GroupStudentsLoader pasa `group` como una foto fija tomada al montar; tras editarlo aquí
   // mismo (GroupFormModal actualiza el contexto de grupos), esto refleja el cambio sin necesitar
   // recargar la página ni levantar el estado hasta el loader.
   const currentGroup = groups.find((candidate) => candidate.id === group.id) ?? group;
 
-  if (group.id !== loadedGroupId) {
-    setLoadedGroupId(group.id);
-    setLoading(true);
+  /** Refleja en la lista cacheada de este grupo lo que el servidor ya respondió, y marca como
+   *  desactualizadas las demás listas de alumnos (la de "Alumnos" y la de otro grupo si se
+   *  reasignó) para que se refresquen en segundo plano. */
+  function setStudents(updater: (current: Student[]) => Student[]) {
+    updateCachedList<Student>(queryClient, queryKeys.studentsByGroup(group.id), updater);
+    invalidateKeys(queryClient, queryKeys.students);
   }
-
-  useEffect(() => {
-    let cancelled = false;
-    listStudentsByGroup(group.id).then((data) => {
-      if (!cancelled) {
-        setStudents(data);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [group.id]);
 
   const universidadMap = useStudentUniversidades(students);
   const cargoAlerts = useStudentCargoAlerts(students);
-
-  useEffect(() => {
-    let cancelled = false;
-    listUniversidades().then((options) => {
-      if (!cancelled) setUniversidadCatalog(options.map((option) => option.label).sort());
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -139,6 +133,11 @@ export function StudentsPage({ group }: { group: Group }) {
   );
 
   function closeModal() {
+    // El alta/edición puede registrar el pago de inscripción y cargos extra, y el modal de pago
+    // puede crear cargos sin pago: al cerrarlos se refrescan pagos y cargos sin importar la ruta.
+    if (activeModal === "pay" || activeModal === "create" || activeModal === "edit") {
+      invalidateAfterPaymentChange(queryClient);
+    }
     setActiveModal(null);
   }
 
