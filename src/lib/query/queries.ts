@@ -3,7 +3,6 @@ import { getGroup, listGroups } from "@/lib/api/groups";
 import { getDestinosForStudents, listAllStudents, listStudentsByGroup } from "@/lib/api/students";
 import { listPayments } from "@/lib/api/payments";
 import { listAllCargos } from "@/lib/api/cargos";
-import { listCampuses } from "@/lib/api/campuses";
 import {
   listBachilleratos,
   listCarrerasByUniversidad,
@@ -15,7 +14,8 @@ import { listMaterias } from "@/lib/api/asesorias";
 import { listTeachers } from "@/lib/api/teachers";
 import { listUsuarios } from "@/lib/api/usuarios";
 import { listLogs } from "@/lib/api/logs";
-import { listEgresos, listTiposEgreso } from "@/lib/api/egresos";
+import { listEgresoMovimientos, listEgresos, listTiposEgreso } from "@/lib/api/egresos";
+import { listCarreras, listPlanteles } from "@/lib/api/catalogos";
 
 // Todas las queryFn envuelven a la Server Action en una flecha sin argumentos: si se pasara la
 // Server Action directo, TanStack le mandaría su contexto ({ signal, queryKey, ... }) como
@@ -36,7 +36,7 @@ export const queryKeys = {
   payments: ["payments"] as const,
   cargos: ["cargos"] as const,
   egresos: ["egresos"] as const,
-  campuses: ["campuses"] as const,
+  egresoMovimientos: (id: string) => ["egresos", id, "movimientos"] as const,
   catalogos: ["catalogos"] as const,
   teachers: ["teachers"] as const,
   usuarios: ["usuarios"] as const,
@@ -67,7 +67,11 @@ export const cargosQuery = () => queryOptions({ queryKey: queryKeys.cargos, quer
 
 export const egresosQuery = () => queryOptions({ queryKey: queryKeys.egresos, queryFn: () => listEgresos() });
 
-export const campusesQuery = () => queryOptions({ queryKey: queryKeys.campuses, queryFn: () => listCampuses() });
+/** Historial de un egreso. Se guarda en disco igual que la lista, para poder consultarlo sin
+ *  conexión; cuelga de ["egresos"], así que invalidar la lista también lo marca desactualizado. */
+export const egresoMovimientosQuery = (id: string) =>
+  queryOptions({ queryKey: queryKeys.egresoMovimientos(id), queryFn: () => listEgresoMovimientos(id) });
+
 
 export const catalogQueries = {
   universidades: queryOptions({ queryKey: ["catalogos", "universidades"], queryFn: () => listUniversidades() }),
@@ -76,9 +80,15 @@ export const catalogQueries = {
   cursosVerano: queryOptions({ queryKey: ["catalogos", "cursos-verano"], queryFn: () => listCursosVerano() }),
   materias: queryOptions({ queryKey: ["catalogos", "materias"], queryFn: () => listMaterias() }),
   tiposEgreso: queryOptions({ queryKey: ["catalogos", "tipos-egreso"], queryFn: () => listTiposEgreso() }),
+  planteles: queryOptions({ queryKey: ["catalogos", "planteles"], queryFn: () => listPlanteles() }),
 };
 
 export type CatalogQuery = (typeof catalogQueries)[keyof typeof catalogQueries];
+
+/** Todas las carreras (con su área). Fuera de catalogQueries porque no es un catálogo simple de
+ *  id/nombre: CatalogQuery asume DestinoOption[]. */
+export const carrerasQuery = () =>
+  queryOptions({ queryKey: ["catalogos", "carreras"], queryFn: () => listCarreras() });
 
 export const carrerasByUniversidadQuery = (idUniversidad: string) =>
   queryOptions({

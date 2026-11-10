@@ -15,11 +15,13 @@ interface EgresosTableProps {
   data: Egreso[];
   columns: ColumnDef<Egreso>[];
   columnVisibility: VisibilityState;
-  /** Suma de los egresos filtrados, mostrada en la fila final bajo la columna Importe. */
+  /** Suma de los egresos filtrados (sin los eliminados), mostrada en la fila final bajo la columna Importe. */
   total: number;
+  /** Fondo de toda la fila (ver estatusEgresoRowClass). */
+  rowClassName?: (egreso: Egreso) => string | undefined;
 }
 
-export function EgresosTable({ data, columns, columnVisibility, total }: EgresosTableProps) {
+export function EgresosTable({ data, columns, columnVisibility, total, rowClassName }: EgresosTableProps) {
   // Orden por defecto: el egreso más reciente arriba (por su fecha y hora, que es lo que el usuario
   // captura y puede ser anterior al momento en que se registró).
   const [sorting, setSorting] = useState<SortingState>([{ id: "fechaHora", desc: true }]);
@@ -51,7 +53,7 @@ export function EgresosTable({ data, columns, columnVisibility, total }: Egresos
                       key={header.id}
                       className={cn(
                         "whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400",
-                        header.column.id === "importe" && "text-right"
+                        (header.column.id === "importe" || header.column.id === "acciones") && "text-right"
                       )}
                     >
                       {header.column.getCanSort() ? (
@@ -84,7 +86,8 @@ export function EgresosTable({ data, columns, columnVisibility, total }: Egresos
                 key={row.id}
                 className={cn(
                   "hover:bg-zinc-50 dark:hover:bg-zinc-800/60",
-                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30"
+                  index % 2 === 1 && "bg-zinc-50/50 dark:bg-zinc-900/30",
+                  rowClassName?.(row.original)
                 )}
               >
                 {row.getVisibleCells().map((cell) => (
@@ -121,6 +124,9 @@ export function EgresosTable({ data, columns, columnVisibility, total }: Egresos
                     ) : index === 0 ? (
                       <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
                         Total del filtro
+                        <span className="ml-1 font-normal normal-case tracking-normal text-zinc-500 dark:text-zinc-400">
+                          · no incluye eliminados
+                        </span>
                       </span>
                     ) : null}
                   </td>

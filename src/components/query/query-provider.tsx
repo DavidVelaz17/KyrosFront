@@ -14,7 +14,7 @@ import { decryptFromCache, encryptForCache, loadCacheKey, unlockClientCache } fr
 const PERSIST_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 
 /** Subirlo invalida las copias locales de todos los equipos (ej. si cambia la forma de algún dato). */
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v5";
 
 /** Si no se pudo obtener la llave (ej. mala conexión al iniciar sesión), cada cuánto reintentar. */
 const KEY_RETRY_MS = 60 * 1000;

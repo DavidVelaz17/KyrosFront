@@ -29,7 +29,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { useColumnVisibility } from "@/hooks/use-column-visibility";
 import { STUDENT_COLUMN_DEFAULT_VISIBILITY } from "@/lib/constants/student-columns";
 import { cargoAlertRowClass } from "@/lib/utils/cargo";
-import { resolveStudentUniversidades, useStudentUniversidades } from "@/hooks/use-student-universidades";
+import {
+  resolveStudentCarreras,
+  resolveStudentUniversidades,
+  useCarreraFilterOptions,
+  useStudentCarreras,
+  useStudentUniversidades,
+} from "@/hooks/use-student-universidades";
 import { useStudentCargoAlerts } from "@/hooks/use-student-cargo-alerts";
 import { EMPTY_STUDENT_FILTERS, type StudentFilters } from "@/lib/types/student-filters";
 import { matchesStudentFilters } from "@/lib/utils/student-filters";
@@ -70,22 +76,30 @@ export function AllStudentsPage() {
 
   const groupNameById = useMemo(() => new Map(groups.map((group) => [group.id, group.nombre])), [groups]);
   const universidadMap = useStudentUniversidades(students);
+  const carreraMap = useStudentCarreras(students);
+  const carreraOptions = useCarreraFilterOptions(filters.universidad);
   const cargoAlerts = useStudentCargoAlerts(students);
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
     return students.filter((student) => {
       const matchesSearch = term.length === 0 || studentFullName(student).toLowerCase().includes(term);
-      const matchesFilters = matchesStudentFilters(student, filters, resolveStudentUniversidades(student, universidadMap));
+      const matchesFilters = matchesStudentFilters(
+        student,
+        filters,
+        resolveStudentUniversidades(student, universidadMap),
+        resolveStudentCarreras(student, carreraMap)
+      );
       return matchesSearch && matchesFilters;
     });
-  }, [students, search, filters, universidadMap]);
+  }, [students, search, filters, universidadMap, carreraMap]);
 
   const columns = useMemo(
     () =>
       buildStudentColumns({
         resolveGroupName: (student) => (student.grupoId ? groupNameById.get(student.grupoId) ?? "Sin grupo" : "Sin grupo"),
         resolveUniversidad: (student) => resolveStudentUniversidades(student, universidadMap),
+        resolveCarrera: (student) => resolveStudentCarreras(student, carreraMap),
         onView: (student) => {
           setSelectedStudent(student);
           setActiveModal("view");
@@ -112,7 +126,7 @@ export function AllStudentsPage() {
           setActiveModal("baja");
         },
       }),
-    [groupNameById, universidadMap]
+    [groupNameById, universidadMap, carreraMap]
   );
 
   function closeModal() {
@@ -146,6 +160,7 @@ export function AllStudentsPage() {
         onFiltersChange={(patch) => setFilters((current) => ({ ...current, ...patch }))}
         onClearFilters={() => setFilters(EMPTY_STUDENT_FILTERS)}
         universidadOptions={universidadCatalog}
+        carreraOptions={carreraOptions}
         groupOptions={groups.map((group) => ({ id: group.id, nombre: group.nombre }))}
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={setColumnVisibility}

@@ -14,13 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { createGroup, updateGroup } from "@/lib/api/groups";
-import { campusesQuery } from "@/lib/query/queries";
+import { catalogQueries } from "@/lib/query/queries";
+import type { DestinoOption } from "@/lib/api/destinos";
 import { useGroups } from "@/components/groups/groups-provider";
 
 const GroupFormSchema = z.object({
   nombre: z.string().min(1, "El nombre del grupo es requerido"),
   fechaInicio: z.string().min(1, "La fecha de inicio es requerida"),
-  plantel: z.string().min(1, "Selecciona un plantel"),
+  plantelId: z.string().min(1, "Selecciona un plantel"),
   horario: z.enum(HORARIO_OPTIONS, { message: "Selecciona un horario" }),
 });
 
@@ -33,12 +34,12 @@ interface GroupFormModalProps {
   editGroup?: Group | null;
 }
 
-const EMPTY_CAMPUSES: string[] = [];
+const EMPTY_PLANTELES: DestinoOption[] = [];
 
 export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormModalProps) {
   const { addGroup, updateGroupInList } = useGroups();
   const router = useRouter();
-  const { data: campuses = EMPTY_CAMPUSES } = useQuery({ ...campusesQuery(), enabled: open });
+  const { data: planteles = EMPTY_PLANTELES } = useQuery({ ...catalogQueries.planteles, enabled: open });
   // Id único por instancia: este modal se monta a la vez en el sidebar (crear) y en la página del
   // grupo (editar); un id fijo duplicaba el atributo `id` en el DOM y el botón "Guardar cambios"
   // terminaba enviando el formulario equivocado (el del sidebar, vacío) en vez del que se ve.
@@ -52,17 +53,17 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
     formState: { errors, isSubmitting },
   } = useForm<GroupFormValues>({
     resolver: zodResolver(GroupFormSchema),
-    defaultValues: { nombre: "", fechaInicio: "", plantel: "", horario: "Escolarizado" },
+    defaultValues: { nombre: "", fechaInicio: "", plantelId: "", horario: "Escolarizado" },
   });
 
   useEffect(() => {
     if (!open) {
-      reset({ nombre: "", fechaInicio: "", plantel: "", horario: "Escolarizado" });
+      reset({ nombre: "", fechaInicio: "", plantelId: "", horario: "Escolarizado" });
     } else if (editGroup) {
       reset({
         nombre: editGroup.nombre,
         fechaInicio: editGroup.fechaInicio,
-        plantel: editGroup.plantel,
+        plantelId: editGroup.plantelId,
         horario: editGroup.horario,
       });
     }
@@ -73,10 +74,10 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
   // del grupo no existía aún en el DOM y el select se veía vacío aunque el valor interno del
   // formulario sí quedara bien. Al terminar de cargar, se vuelve a aplicar para que coincidan.
   useEffect(() => {
-    if (open && editGroup && campuses.length > 0) {
-      setValue("plantel", editGroup.plantel);
+    if (open && editGroup && planteles.length > 0) {
+      setValue("plantelId", editGroup.plantelId);
     }
-  }, [open, editGroup, campuses, setValue]);
+  }, [open, editGroup, planteles, setValue]);
 
   async function onSubmit(values: GroupFormValues) {
     if (editGroup) {
@@ -116,14 +117,14 @@ export function GroupFormModal({ open, onClose, editGroup = null }: GroupFormMod
         <Field label="Fecha de inicio" htmlFor="fechaInicio" error={errors.fechaInicio?.message} required>
           <Input id="fechaInicio" type="date" {...register("fechaInicio")} />
         </Field>
-        <Field label="Plantel al que pertenece" htmlFor="plantel" error={errors.plantel?.message} required>
-          <Select id="plantel" defaultValue="" {...register("plantel")}>
+        <Field label="Plantel al que pertenece" htmlFor="plantelId" error={errors.plantelId?.message} required>
+          <Select id="plantelId" defaultValue="" {...register("plantelId")}>
             <option value="" disabled>
               Selecciona un plantel
             </option>
-            {campuses.map((campus) => (
-              <option key={campus} value={campus}>
-                {campus}
+            {planteles.map((plantel) => (
+              <option key={plantel.id} value={plantel.id}>
+                {plantel.label}
               </option>
             ))}
           </Select>

@@ -66,7 +66,19 @@ export async function listAllCargos(): Promise<CargoDto[]> {
   return apiFetch<CargoDto[]>("/api/cargos");
 }
 
-/** El resto del cargo es inmutable; solo su estatus puede transicionar (ej. al registrar un pago). */
+/** Corrige tipo de mensualidad y monto total de un cargo (desde "Registrar pago → Cargo
+ *  pendiente"). El backend rechaza un monto menor a lo ya pagado. */
+export async function updateCargo(
+  idCargo: number,
+  input: { tipoMensualidadCargo: string; montoTotalCargo: number }
+): Promise<CargoDto> {
+  return apiFetch<CargoDto>(`/api/cargos/${idCargo}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Concepto y fechas son inmutables; el estatus transiciona al registrar un pago. */
 export async function updateCargoEstatus(idCargo: number, estatusCargo: string): Promise<CargoDto> {
   return apiFetch<CargoDto>(`/api/cargos/${idCargo}/estatus`, {
     method: "PUT",

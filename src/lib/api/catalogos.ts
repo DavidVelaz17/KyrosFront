@@ -172,3 +172,27 @@ export async function updateTipoEgreso(id: string, nombre: string): Promise<Dest
 export async function deleteTipoEgreso(id: string): Promise<void> {
   return eliminarCatalogo(`/api/tipos-egreso/${id}`);
 }
+
+// ---- Planteles (los usan los grupos; se administran solo por ADMIN/COORDINADOR) ----
+interface PlantelDto {
+  idPlantel: number;
+  nombrePlantel: string;
+}
+
+export async function listPlanteles(): Promise<DestinoOption[]> {
+  const dtos = await apiFetch<PlantelDto[]>("/api/planteles");
+  return dtos.map((dto) => ({ id: String(dto.idPlantel), label: dto.nombrePlantel }));
+}
+
+export async function createPlantel(nombre: string): Promise<DestinoOption> {
+  return crearCatalogoSimple("/api/planteles", "nombrePlantel", "idPlantel", nombre);
+}
+
+export async function updatePlantel(id: string, nombre: string): Promise<DestinoOption> {
+  return actualizarCatalogoSimple(`/api/planteles/${id}`, "nombrePlantel", "idPlantel", nombre);
+}
+
+/** Si el plantel tiene grupos, el backend lo rechaza con un mensaje que dice cuántos. */
+export async function deletePlantel(id: string): Promise<void> {
+  return eliminarCatalogo(`/api/planteles/${id}`);
+}
