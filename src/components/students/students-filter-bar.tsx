@@ -18,6 +18,7 @@ interface StudentsFilterBarProps {
   onFiltersChange: (patch: Partial<StudentFilters>) => void;
   onClearFilters: () => void;
   universidadOptions: string[];
+  carreraOptions: string[];
   groupOptions?: GroupOption[];
   columnVisibility: Record<string, boolean>;
   onColumnVisibilityChange: (visibility: Record<string, boolean>) => void;
@@ -30,6 +31,7 @@ export function StudentsFilterBar({
   onFiltersChange,
   onClearFilters,
   universidadOptions,
+  carreraOptions,
   groupOptions,
   columnVisibility,
   onColumnVisibilityChange,
@@ -51,6 +53,7 @@ export function StudentsFilterBar({
           onChange={onFiltersChange}
           onClear={onClearFilters}
           universidadOptions={universidadOptions}
+          carreraOptions={carreraOptions}
           groupOptions={groupOptions}
         />
       </div>

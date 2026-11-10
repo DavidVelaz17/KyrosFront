@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -23,10 +24,13 @@ import { cn } from "@/lib/utils/cn";
 import { useGroups } from "@/components/groups/groups-provider";
 import { GroupFormModal } from "@/components/groups/group-form-modal";
 import { Select } from "@/components/ui/select";
-import { CAMPUSES } from "@/lib/constants/campuses";
 import { HORARIO_OPTIONS } from "@/lib/types/student";
+import type { DestinoOption } from "@/lib/api/destinos";
+import { catalogQueries } from "@/lib/query/queries";
 import type { RolUsuario, SessionUser } from "@/lib/types/auth";
 import { canViewCargos, canViewEgresos, isAdmin, isAdminOrCoordinador } from "@/lib/types/auth";
+
+const EMPTY_PLANTELES: DestinoOption[] = [];
 
 const QUICK_ACTIONS_LINK = { href: "/dashboard/acciones-rapidas", label: "Acciones rápidas", icon: Zap };
 
@@ -62,13 +66,15 @@ export function Sidebar({
   const [groupsExpanded, setGroupsExpanded] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [plantelFilter, setPlantelFilter] = useState("");
+  // Del catálogo (Catálogos → Planteles), no una lista fija: el filtro usa el id del plantel.
+  const { data: planteles = EMPTY_PLANTELES } = useQuery(catalogQueries.planteles);
   const [horarioFilter, setHorarioFilter] = useState("");
 
   const isGruposActive = pathname.startsWith("/dashboard/grupos");
   const navLinks = NAV_LINKS.filter((link) => !link.visible || link.visible(user.rol));
   const visibleGroups = groups.filter(
     (group) =>
-      (!plantelFilter || group.plantel === plantelFilter) && (!horarioFilter || group.horario === horarioFilter)
+      (!plantelFilter || group.plantelId === plantelFilter) && (!horarioFilter || group.horario === horarioFilter)
   );
 
   return (
@@ -140,9 +146,9 @@ export function Sidebar({
                       aria-label="Filtrar grupos por plantel"
                     >
                       <option value="">Todos los planteles</option>
-                      {CAMPUSES.map((campus) => (
-                        <option key={campus} value={campus}>
-                          {campus}
+                      {planteles.map((plantel) => (
+                        <option key={plantel.id} value={plantel.id}>
+                          {plantel.label}
                         </option>
                       ))}
                     </Select>

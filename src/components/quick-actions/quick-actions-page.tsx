@@ -16,7 +16,7 @@ import { useGroups } from "@/components/groups/groups-provider";
 import { StudentFormModal } from "@/components/students/student-form-modal";
 import { NewCargoModal } from "@/components/quick-actions/new-cargo-modal";
 import { NewPagoModal } from "@/components/quick-actions/new-pago-modal";
-import { NewEgresoModal } from "@/components/egresos/new-egreso-modal";
+import { EgresoFormModal } from "@/components/egresos/egreso-form-modal";
 import { GenerarReporteModal } from "@/components/pagos/generar-reporte-modal";
 import { useSessionUser } from "@/components/auth/session-provider";
 import { canViewEgresos } from "@/lib/types/auth";
@@ -115,10 +115,10 @@ export function QuickActionsPage() {
        *  no hace falta refrescar pagos ni cargos (por eso no usa closeModal). */}
       <GenerarReporteModal open={activeModal === "reporte"} onClose={() => setActiveModal(null)} />
       {showEgreso && (
-        <NewEgresoModal
+        <EgresoFormModal
           open={activeModal === "egreso"}
           onClose={closeModal}
-          onCreated={(egreso) => updateCachedList<Egreso>(queryClient, queryKeys.egresos, (current) => [...current, egreso])}
+          onSaved={(egreso) => updateCachedList<Egreso>(queryClient, queryKeys.egresos, (current) => [...current, egreso])}
         />
       )}
     </div>

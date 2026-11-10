@@ -13,6 +13,7 @@ export const STUDENT_COLUMN_CATALOG: StudentColumnMeta[] = [
   { id: "estatus", label: "Estatus", defaultVisible: true },
   { id: "telefono", label: "Teléfono", defaultVisible: true },
   { id: "universidad", label: "Universidad", defaultVisible: true },
+  { id: "carrera", label: "Carrera", defaultVisible: true },
   { id: "ingles", label: "Inglés", defaultVisible: false },
   { id: "edad", label: "Edad", defaultVisible: false },
   { id: "ingresoA", label: "Ingreso a", defaultVisible: false },

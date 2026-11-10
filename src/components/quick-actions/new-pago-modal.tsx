@@ -7,13 +7,7 @@ import { z } from "zod";
 import { Printer } from "lucide-react";
 import type { Student } from "@/lib/types/student";
 import type { Payment, PaymentPlanType } from "@/lib/types/payment";
-import {
-  ESTATUS_CARGO_DESCRIPTIONS,
-  PAYMENT_METHOD_OPTIONS,
-  PAYMENT_PLAN_TYPE_OPTIONS,
-  TIPO_MENSUALIDAD_FROM_BACKEND,
-  type EstatusCargo,
-} from "@/lib/types/payment";
+import { PAYMENT_METHOD_OPTIONS, PAYMENT_PLAN_TYPE_OPTIONS } from "@/lib/types/payment";
 import { updateCargoEstatus } from "@/lib/api/cargos";
 import { createPagoForCargo } from "@/lib/api/payments";
 import { Modal } from "@/components/ui/modal";
@@ -28,6 +22,14 @@ import { StudentSearchField } from "@/components/quick-actions/student-search-fi
 import { formatCurrency, formatDate, sanitizeAmountInput, todayISODate } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
 import { fetchPendingCargos, type PendingCargo } from "@/lib/utils/cargo";
+import {
+  EditableCargoFields,
+  cargoEdicionInicial,
+  guardarCargoEdicion,
+  montoRestanteEditado,
+  validarCargoEdicion,
+  type CargoEdicion,
+} from "@/components/payments/editable-cargo-fields";
 import {
   createCargoFromSection,
   EMPTY_NEW_CARGO_SECTION,
@@ -87,6 +89,9 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
   const [pendingCargos, setPendingCargos] = useState<PendingCargo[]>([]);
   const [loadingCargos, setLoadingCargos] = useState(false);
   const [selectedCargo, setSelectedCargo] = useState<PendingCargo | null>(null);
+  // Tipo de mensualidad y monto total del cargo elegido, editables antes de pagar.
+  const [cargoEdicion, setCargoEdicion] = useState<CargoEdicion | null>(null);
+  const [cargoEdicionError, setCargoEdicionError] = useState<string | undefined>(undefined);
   const [cargoError, setCargoError] = useState<string | undefined>(undefined);
   const [tipoPago, setTipoPago] = useState<TipoPago>("Completo");
   // Concepto propio de este abono (distinto del concepto del cargo): el recibo de un pago
@@ -132,6 +137,8 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       setCargoMode("existente");
       setPendingCargos([]);
       setSelectedCargo(null);
+      setCargoEdicion(null);
+      setCargoEdicionError(undefined);
       setCargoError(undefined);
       setTipoPago("Completo");
       setConceptoAbono("");
@@ -178,16 +185,30 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
   function handleSelectCargo(idCargo: string) {
     const cargo = pendingCargos.find((c) => String(c.idCargo) === idCargo) ?? null;
     setSelectedCargo(cargo);
+    setCargoEdicion(cargo ? cargoEdicionInicial(cargo) : null);
+    setCargoEdicionError(undefined);
     setCargoError(undefined);
     setTipoPago("Completo");
     setValue("montoPagadoPago", cargo ? String(cargo.montoRestante) : "");
+  }
+
+  /** Saldo a cobrar del cargo elegido, con el monto total que se haya corregido. */
+  const restanteCargo = selectedCargo && cargoEdicion ? montoRestanteEditado(selectedCargo, cargoEdicion) : 0;
+
+  function handleCargoEdicionChange(edicion: CargoEdicion) {
+    setCargoEdicion(edicion);
+    setCargoEdicionError(undefined);
+    // "Pago completo" cobra exactamente el restante: sigue al monto total corregido.
+    if (selectedCargo && tipoPago === "Completo") {
+      setValue("montoPagadoPago", String(Math.max(montoRestanteEditado(selectedCargo, edicion), 0)));
+    }
   }
 
   function handleSelectTipoPago(tipo: TipoPago) {
     setTipoPago(tipo);
     if (tipo === "Completo") {
       setConceptoAbono("");
-      if (selectedCargo) setValue("montoPagadoPago", String(selectedCargo.montoRestante));
+      if (selectedCargo) setValue("montoPagadoPago", String(restanteCargo));
     }
   }
 
@@ -268,23 +289,32 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
       setCargoError("Selecciona un cargo");
       return;
     }
+    if (cargoEdicion) {
+      const edicionError = validarCargoEdicion(selectedCargo, cargoEdicion);
+      if (edicionError) {
+        setCargoEdicionError(edicionError);
+        return;
+      }
+    }
     const montoPagado = Number(values.montoPagadoPago);
     if (!values.montoPagadoPago || !(montoPagado > 0)) {
       setError("montoPagadoPago", { message: "El monto es requerido" });
       return;
     }
-    if (tipoPago === "Parcial" && montoPagado >= selectedCargo.montoRestante) {
+    if (tipoPago === "Parcial" && montoPagado >= restanteCargo) {
       setError("montoPagadoPago", { message: "Este monto cubre el total del cargo; usa 'Pago completo'." });
       return;
     }
-    if (tipoPago === "Completo" && montoPagado !== selectedCargo.montoRestante) {
+    if (tipoPago === "Completo" && montoPagado !== restanteCargo) {
       setError("montoPagadoPago", { message: "El pago completo debe ser por el monto restante del cargo." });
       return;
     }
 
     // Pago completo: el cargo se marca Pagado y deja de aparecer en la lista de pendientes.
     // Pago parcial: el cargo queda (o pasa a) Parcial; su saldo restante baja porque se
-    // recalcula a partir de la suma de pagos, no se edita el monto total del cargo.
+    // recalcula a partir de la suma de pagos. Si se corrigió el tipo o el monto total del cargo,
+    // eso se guarda primero, para que el pago se aplique sobre el cargo ya corregido.
+    if (cargoEdicion) await guardarCargoEdicion(selectedCargo, cargoEdicion);
     await updateCargoEstatus(selectedCargo.idCargo, tipoPago === "Completo" ? "PAGADO" : "PARCIAL");
     const payment = await createPagoForCargo({
       idCargo: selectedCargo.idCargo,
@@ -401,29 +431,14 @@ export function NewPagoModal({ open, onClose, students, onCreated }: NewPagoModa
 
                     {selectedCargo && (
                       <>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          <Field label="Tipo de mensualidad" htmlFor="_cargo_tipo">
-                            <Input
-                              id="_cargo_tipo"
-                              value={
-                                TIPO_MENSUALIDAD_FROM_BACKEND[selectedCargo.tipoMensualidadCargo] ?? selectedCargo.tipoMensualidadCargo
-                              }
-                              disabled
-                            />
-                          </Field>
-                          <Field label="Estatus actual" htmlFor="_cargo_estatus">
-                            <Input id="_cargo_estatus" value={selectedCargo.estatusCargo} disabled />
-                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                              {ESTATUS_CARGO_DESCRIPTIONS[selectedCargo.estatusCargo as EstatusCargo]}
-                            </p>
-                          </Field>
-                          <Field label="Monto total del cargo" htmlFor="_cargo_monto_total">
-                            <Input id="_cargo_monto_total" value={formatCurrency(selectedCargo.montoTotalCargo)} disabled />
-                          </Field>
-                          <Field label="Monto restante" htmlFor="_cargo_monto_restante">
-                            <Input id="_cargo_monto_restante" value={formatCurrency(selectedCargo.montoRestante)} disabled />
-                          </Field>
-                        </div>
+                        {cargoEdicion && (
+                          <EditableCargoFields
+                            cargo={selectedCargo}
+                            value={cargoEdicion}
+                            onChange={handleCargoEdicionChange}
+                            error={cargoEdicionError}
+                          />
+                        )}
 
                         <div>
                           <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">Tipo de pago</p>

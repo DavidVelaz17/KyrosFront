@@ -7,6 +7,8 @@ export interface StudentFilters {
   horario: string;
   llevaIngles: string;
   universidad: string;
+  /** Nombre de la carrera; las opciones dependen de la universidad elegida (useCarreraFilterOptions). */
+  carrera: string;
   /** Vacío en la vista de un solo grupo (ahí no aplica: todos los alumnos ya son de ese grupo). */
   grupo: string;
   matricula: string;
@@ -28,6 +30,7 @@ export const EMPTY_STUDENT_FILTERS: StudentFilters = {
   horario: "",
   llevaIngles: "",
   universidad: "",
+  carrera: "",
   grupo: "",
   matricula: "",
   telefono: "",

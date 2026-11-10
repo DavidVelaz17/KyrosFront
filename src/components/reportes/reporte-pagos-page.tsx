@@ -7,6 +7,10 @@ import { listPayments } from "@/lib/api/payments";
 import { listAllStudents } from "@/lib/api/students";
 import { listUsuarios } from "@/lib/api/usuarios";
 import { listEgresos } from "@/lib/api/egresos";
+import { listGroups } from "@/lib/api/groups";
+import { listPlanteles } from "@/lib/api/catalogos";
+import type { DestinoOption } from "@/lib/api/destinos";
+import type { Group } from "@/lib/types/group";
 import type { Payment } from "@/lib/types/payment";
 import type { Student } from "@/lib/types/student";
 import { studentFullName } from "@/lib/types/student";
@@ -15,6 +19,7 @@ import type { Egreso } from "@/lib/types/egreso";
 import { useStudentUniversidades } from "@/hooks/use-student-universidades";
 import { Spinner } from "@/components/ui/spinner";
 import { formatCurrency, formatDate, formatDateTime, formatLocalDateTime } from "@/lib/utils/format";
+import { isEgresoEliminado } from "@/lib/utils/egreso";
 
 /** ¿La fecha "AAAA-MM-DD" cae dentro del periodo elegido en el reporte (día, mes o rango)? */
 function inPeriod(fecha: string, period: { dia: string; mes: string; desde: string; hasta: string }): boolean {
@@ -36,6 +41,8 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
   const [students, setStudents] = useState<Student[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [egresos, setEgresos] = useState<Egreso[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [planteles, setPlanteles] = useState<DestinoOption[]>([]);
   const [loading, setLoading] = useState(true);
   const hasPrintedRef = useRef(false);
 
@@ -45,11 +52,15 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
       listAllStudents(),
       listUsuarios(),
       includeEgresos ? listEgresos() : Promise.resolve<Egreso[]>([]),
-    ]).then(([paymentsData, studentsData, usuariosData, egresosData]) => {
+      listGroups(),
+      listPlanteles(),
+    ]).then(([paymentsData, studentsData, usuariosData, egresosData, groupsData, plantelesData]) => {
       setPayments(paymentsData);
       setStudents(studentsData);
       setUsuarios(usuariosData);
       setEgresos(egresosData);
+      setGroups(groupsData);
+      setPlanteles(plantelesData);
       setLoading(false);
     });
   }, [includeEgresos]);
@@ -60,10 +71,20 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
   const universidad = searchParams.get("universidad") ?? "";
   const ingresoA = searchParams.get("ingresoA") ?? "";
   const usuarioId = searchParams.get("usuarioId") ?? "";
+  const plantelId = searchParams.get("plantelId") ?? "";
   const dia = searchParams.get("dia") ?? "";
   const mes = searchParams.get("mes") ?? "";
   const desde = searchParams.get("desde") ?? "";
   const hasta = searchParams.get("hasta") ?? "";
+
+  // El plantel de un pago es el del grupo actual del alumno: alumno → grupo → plantel. Un alumno
+  // sin grupo no tiene plantel, así que sus pagos no entran cuando se filtra por plantel.
+  const plantelByStudent = useMemo(() => {
+    const plantelByGroup = new Map(groups.map((group) => [group.id, group.plantelId]));
+    return new Map(
+      students.map((student) => [student.id, student.grupoId ? plantelByGroup.get(student.grupoId) : undefined])
+    );
+  }, [students, groups]);
 
   const filtered = useMemo(() => {
     return payments
@@ -72,10 +93,11 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
         if (ingresoA && payment.ingresoA !== ingresoA) return false;
         if (universidad && !(universidadMap[payment.studentId] ?? []).includes(universidad)) return false;
         if (usuarioId && payment.usuarioId !== usuarioId) return false;
+        if (plantelId && plantelByStudent.get(payment.studentId) !== plantelId) return false;
         return inPeriod(payment.fecha, { dia, mes, desde, hasta });
       })
       .sort((a, b) => b.fecha.localeCompare(a.fecha));
-  }, [payments, universidadMap, studentId, ingresoA, universidad, usuarioId, dia, mes, desde, hasta]);
+  }, [payments, universidadMap, plantelByStudent, studentId, ingresoA, universidad, usuarioId, plantelId, dia, mes, desde, hasta]);
 
   const total = filtered.reduce((sum, payment) => sum + payment.monto, 0);
   const totalEfectivo = filtered
@@ -85,15 +107,19 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
     .filter((payment) => payment.metodoPago === "Transferencia")
     .reduce((sum, payment) => sum + payment.monto, 0);
 
-  // Los egresos se filtran por el periodo y por "Cobrado por" (quién registró el egreso); los
-  // filtros de alumno, universidad e "ingresa a" son de pagos y no aplican a un gasto.
+  // Los egresos se filtran por el periodo, por "Cobrado por" (quién registró el egreso) y por
+  // plantel, para que el corte de caja de un plantel cuadre; los filtros de alumno, universidad e
+  // "ingresa a" son de pagos y no aplican a un gasto. Los eliminados nunca salen en el reporte; los
+  // corregidos salen con sus valores actuales.
   const filteredEgresos = useMemo(
     () =>
       egresos
+        .filter((egreso) => !isEgresoEliminado(egreso))
         .filter((egreso) => !usuarioId || egreso.usuarioId === usuarioId)
+        .filter((egreso) => !plantelId || egreso.plantelId === plantelId)
         .filter((egreso) => inPeriod(egreso.fechaHora.slice(0, 10), { dia, mes, desde, hasta }))
         .sort((a, b) => b.fechaHora.localeCompare(a.fechaHora)),
-    [egresos, usuarioId, dia, mes, desde, hasta]
+    [egresos, usuarioId, plantelId, dia, mes, desde, hasta]
   );
   const totalEgresos = filteredEgresos.reduce((sum, egreso) => sum + egreso.importe, 0);
   const egresosByTipo = useMemo(() => {
@@ -130,6 +156,10 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
   if (usuarioId) {
     const usuario = usuarios.find((candidate) => candidate.id === usuarioId);
     if (usuario) filterDescriptions.push(`Cobrado por: ${usuario.nombreUsuario}`);
+  }
+  if (plantelId) {
+    const plantel = planteles.find((candidate) => candidate.id === plantelId);
+    if (plantel) filterDescriptions.push(`Plantel: ${plantel.label}`);
   }
   if (dia) filterDescriptions.push(`Día: ${formatDate(dia)}`);
   if (mes) filterDescriptions.push(`Mes: ${mes}`);
@@ -216,8 +246,8 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
           )}
           {(studentId || universidad || ingresoA) && (
             <p className="mt-1 text-xs text-zinc-500">
-              Los egresos solo se filtran por fecha y por &quot;Cobrado por&quot;; los filtros de alumno, universidad e
-              &quot;ingresa a&quot; aplican únicamente a los pagos.
+              Los egresos solo se filtran por fecha, por &quot;Cobrado por&quot; y por plantel; los filtros de alumno,
+              universidad e &quot;ingresa a&quot; aplican únicamente a los pagos.
             </p>
           )}
 
@@ -226,6 +256,7 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
               <tr className="border-b border-zinc-400 text-left">
                 <th className="py-1.5 pr-2">Fecha y hora</th>
                 <th className="py-1.5 pr-2">Tipo</th>
+                <th className="py-1.5 pr-2">Plantel</th>
                 <th className="py-1.5 pr-2">Importe</th>
                 <th className="py-1.5 pr-2">Observaciones</th>
                 <th className="py-1.5 pr-2">Registró</th>
@@ -236,6 +267,7 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
                 <tr key={egreso.id} className="border-b border-zinc-200">
                   <td className="whitespace-nowrap py-1.5 pr-2">{formatLocalDateTime(egreso.fechaHora)}</td>
                   <td className="py-1.5 pr-2">{egreso.tipoNombre}</td>
+                  <td className="py-1.5 pr-2">{egreso.plantelNombre}</td>
                   <td className="py-1.5 pr-2">{formatCurrency(egreso.importe)}</td>
                   <td className="py-1.5 pr-2">{egreso.observaciones || "—"}</td>
                   <td className="py-1.5 pr-2">{egreso.usuarioNombre}</td>
@@ -243,7 +275,7 @@ export function ReportePagosPage({ includeEgresos }: { includeEgresos: boolean }
               ))}
               {filteredEgresos.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-zinc-500">
+                  <td colSpan={6} className="py-6 text-center text-zinc-500">
                     No hay egresos registrados en este periodo.
                   </td>
                 </tr>

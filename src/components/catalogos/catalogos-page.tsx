@@ -9,18 +9,21 @@ import {
   createBachillerato,
   createCursoVerano,
   createMateria,
+  createPlantel,
   createSecundaria,
   createTipoEgreso,
   createUniversidad,
   deleteBachillerato,
   deleteCursoVerano,
   deleteMateria,
+  deletePlantel,
   deleteSecundaria,
   deleteTipoEgreso,
   deleteUniversidad,
   updateBachillerato,
   updateCursoVerano,
   updateMateria,
+  updatePlantel,
   updateSecundaria,
   updateTipoEgreso,
   updateUniversidad,
@@ -33,6 +36,7 @@ const TABS: TabItem[] = [
   { id: "materias", label: "Materias" },
   { id: "cursos-verano", label: "Cursos de verano" },
   { id: "tipos-egreso", label: "Tipos de egreso" },
+  { id: "planteles", label: "Planteles" },
 ];
 
 /** Administración de los catálogos que se usan al inscribir alumnos (sección "Ingresa a" del
@@ -46,7 +50,7 @@ export function CatalogosPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Catálogos</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Universidades (y sus carreras), bachilleratos, secundarias, materias y cursos de verano disponibles al inscribir alumnos, y los tipos de egreso.
+          Universidades (y sus carreras), bachilleratos, secundarias, materias y cursos de verano disponibles al inscribir alumnos, los tipos de egreso y los planteles.
         </p>
       </div>
 
@@ -119,6 +123,19 @@ export function CatalogosPage() {
             update={updateTipoEgreso}
             remove={deleteTipoEgreso}
             dependentKeys={[queryKeys.egresos]}
+          />
+        )}
+        {active === "planteles" && (
+          <SimpleCatalogPanel
+            title="Planteles"
+            singularLabel="Plantel"
+            newLabel="Nuevo plantel"
+            query={catalogQueries.planteles}
+            create={createPlantel}
+            update={updatePlantel}
+            remove={deletePlantel}
+            // Los grupos muestran el nombre del plantel: al renombrarlo hay que volver a pedirlos.
+            dependentKeys={[queryKeys.groups]}
           />
         )}
       </div>

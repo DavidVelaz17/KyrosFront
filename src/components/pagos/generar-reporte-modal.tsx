@@ -30,15 +30,18 @@ interface GenerarReporteModalProps {
 const EMPTY_STUDENTS: Student[] = [];
 const EMPTY_UNIVERSIDADES: DestinoOption[] = [];
 const EMPTY_USUARIOS: Usuario[] = [];
+const EMPTY_PLANTELES: DestinoOption[] = [];
 
 export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps) {
   const { data: students = EMPTY_STUDENTS } = useQuery({ ...allStudentsQuery(), enabled: open });
   const { data: universidades = EMPTY_UNIVERSIDADES } = useQuery({ ...catalogQueries.universidades, enabled: open });
   const { data: usuarios = EMPTY_USUARIOS } = useQuery({ ...usuariosQuery(), enabled: open });
+  const { data: planteles = EMPTY_PLANTELES } = useQuery({ ...catalogQueries.planteles, enabled: open });
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [universidad, setUniversidad] = useState("");
   const [ingresoA, setIngresoA] = useState("");
   const [usuarioId, setUsuarioId] = useState("");
+  const [plantelId, setPlantelId] = useState("");
   const [dateMode, setDateMode] = useState<DateMode>("Todos");
   const [dia, setDia] = useState(todayISODate());
   const [mes, setMes] = useState(todayISODate().slice(0, 7));
@@ -52,6 +55,7 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
       setUniversidad("");
       setIngresoA("");
       setUsuarioId("");
+      setPlantelId("");
       setDateMode("Todos");
     }
   }, [open]);
@@ -62,6 +66,7 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
     if (universidad) params.set("universidad", universidad);
     if (ingresoA) params.set("ingresoA", ingresoA);
     if (usuarioId) params.set("usuarioId", usuarioId);
+    if (plantelId) params.set("plantelId", plantelId);
     if (dateMode === "Día") params.set("dia", dia);
     if (dateMode === "Mes") params.set("mes", mes);
     if (dateMode === "Rango") {
@@ -124,6 +129,20 @@ export function GenerarReporteModal({ open, onClose }: GenerarReporteModalProps)
                 </option>
               ))}
             </Select>
+          </Field>
+          <Field label="Plantel" htmlFor="reporte-plantel">
+            <Select id="reporte-plantel" value={plantelId} onChange={(event) => setPlantelId(event.target.value)}>
+              <option value="">Todos</option>
+              {planteles.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Pagos: según el grupo del alumno. Egresos: el plantel con que se registraron. Para tu corte de
+              caja, combínalo con &quot;Cobrado por&quot;.
+            </p>
           </Field>
         </div>
 

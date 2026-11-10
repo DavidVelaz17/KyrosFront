@@ -18,6 +18,8 @@ interface BuildColumnsArgs {
   resolveGroupName: (student: Student) => string;
   /** Universidad(es) ligada(s) al alumno (["No aplica"] si su ingresoA no es Universidad o no tiene ninguna). */
   resolveUniversidad: (student: Student) => string[];
+  /** Carrera(s) que eligió el alumno (["No aplica"] igual que resolveUniversidad). */
+  resolveCarrera: (student: Student) => string[];
   onView: (student: Student) => void;
   onEdit: (student: Student) => void;
   onPay: (student: Student) => void;
@@ -28,6 +30,7 @@ interface BuildColumnsArgs {
 export function buildStudentColumns({
   resolveGroupName,
   resolveUniversidad,
+  resolveCarrera,
   onView,
   onEdit,
   onPay,
@@ -93,6 +96,22 @@ export function buildStudentColumns({
       cell: ({ row }) => (
         <div className="flex flex-col gap-0.5">
           {resolveUniversidad(row.original).map((nombre, index) => (
+            <span key={index} className="text-sm text-zinc-600 dark:text-zinc-400">
+              {nombre}
+            </span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "carrera",
+      header: "CARRERA",
+      accessorFn: (row) => resolveCarrera(row).join(", "),
+      enableSorting: true,
+      sortingFn: localeTextSort,
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-0.5">
+          {resolveCarrera(row.original).map((nombre, index) => (
             <span key={index} className="text-sm text-zinc-600 dark:text-zinc-400">
               {nombre}
             </span>

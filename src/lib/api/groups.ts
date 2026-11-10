@@ -19,7 +19,8 @@ interface GrupoDto {
   idGrupo: number;
   nombreGrupo: string;
   fechaInicio: string;
-  nombrePlantel: string;
+  idPlantel: number;
+  nombrePlantel: string | null;
   horario: string;
 }
 
@@ -28,7 +29,8 @@ function toGroup(dto: GrupoDto): Group {
     id: String(dto.idGrupo),
     nombre: dto.nombreGrupo,
     fechaInicio: dto.fechaInicio,
-    plantel: dto.nombrePlantel,
+    plantelId: String(dto.idPlantel),
+    plantel: dto.nombrePlantel ?? "—",
     horario: HORARIO_FROM_BACKEND[dto.horario] ?? "Escolarizado",
   };
 }
@@ -53,7 +55,7 @@ export async function createGroup(input: CreateGroupInput): Promise<Group> {
     body: JSON.stringify({
       nombreGrupo: input.nombre,
       fechaInicio: input.fechaInicio,
-      nombrePlantel: input.plantel,
+      idPlantel: Number(input.plantelId),
       horario: HORARIO_TO_BACKEND[input.horario],
     }),
   });
@@ -66,7 +68,7 @@ export async function updateGroup(id: string, input: CreateGroupInput): Promise<
     body: JSON.stringify({
       nombreGrupo: input.nombre,
       fechaInicio: input.fechaInicio,
-      nombrePlantel: input.plantel,
+      idPlantel: Number(input.plantelId),
       horario: HORARIO_TO_BACKEND[input.horario],
     }),
   });

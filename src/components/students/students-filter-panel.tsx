@@ -23,12 +23,21 @@ interface StudentsFilterPanelProps {
   onChange: (patch: Partial<StudentFilters>) => void;
   onClear: () => void;
   universidadOptions: string[];
+  /** Carreras de la universidad elegida en el filtro, o todas si no hay una (useCarreraFilterOptions). */
+  carreraOptions: string[];
   /** Solo se pasa (y solo entonces se muestra el select de Grupo) desde la vista global de
    *  Alumnos; en la vista de un solo grupo no aplica, ya todos los alumnos son de ese grupo. */
   groupOptions?: GroupOption[];
 }
 
-export function StudentsFilterPanel({ filters, onChange, onClear, universidadOptions, groupOptions }: StudentsFilterPanelProps) {
+export function StudentsFilterPanel({
+  filters,
+  onChange,
+  onClear,
+  universidadOptions,
+  carreraOptions,
+  groupOptions,
+}: StudentsFilterPanelProps) {
   const activeCount = countActiveStudentFilters(filters);
 
   return (
@@ -93,7 +102,12 @@ export function StudentsFilterPanel({ filters, onChange, onClear, universidadOpt
           </Field>
 
           <Field label="Universidad" htmlFor="filtro-universidad">
-            <Select id="filtro-universidad" value={filters.universidad} onChange={(event) => onChange({ universidad: event.target.value })}>
+            <Select
+              id="filtro-universidad"
+              value={filters.universidad}
+              // Al cambiar de universidad, la carrera elegida puede ya no existir en la nueva lista.
+              onChange={(event) => onChange({ universidad: event.target.value, carrera: "" })}
+            >
               <option value="">Todas</option>
               {universidadOptions.map((option) => (
                 <option key={option} value={option}>
@@ -101,6 +115,20 @@ export function StudentsFilterPanel({ filters, onChange, onClear, universidadOpt
                 </option>
               ))}
             </Select>
+          </Field>
+
+          <Field label="Carrera" htmlFor="filtro-carrera">
+            <Select id="filtro-carrera" value={filters.carrera} onChange={(event) => onChange({ carrera: event.target.value })}>
+              <option value="">Todas</option>
+              {carreraOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+            {filters.universidad && (
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Solo carreras de {filters.universidad}</p>
+            )}
           </Field>
 
           {groupOptions && (
